@@ -1,0 +1,71 @@
+(Note: MacOS usage coming soon.)
+
+First, install FSL, see instructions at: https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FslInstallation
+Use the environment provided by FSL.
+
+=== Preparation ===
+
+Copy a few data files into $FSLDEVDIR/data and the sources into $FSLDEVDIR/src. See the below directory tree for an example.
+
+$ cd $FSLDEVDIR
+$ tree
+.
+├── bin
+├── data
+│   ├── input
+│   │   ├── 100307.L.SmoothedMyelinMap_BC.native.func.gii
+│   │   ├── 100307.L.sphere.rot.native.surf.gii
+│   │   ├── 100307.L.sulc.native.shape.gii
+│   │   └── 100307.L.very_inflated.native.surf.gii
+│   └── output
+├── include
+├── lib
+├── python
+├── src
+│   ├── demo
+│   │   ├── Makefile
+│   │   ├── metric-resample.cpp
+│   │   └── surface-resample.cpp
+│   ├── src
+│   │   ├── Makefile
+│   │   ├── mesh.cpp
+│   │   ├── meshException.h
+│   │   ├── mesh.h
+│   │   ├── mpoint.cpp
+│   │   ├── mpoint.h
+│   │   ├── node.cpp
+│   │   ├── node.h
+│   │   ├── octree.cpp
+│   │   ├── octree.h
+│   │   ├── point.cpp
+│   │   ├── point.h
+│   │   ├── resampler.cpp
+│   │   ├── resampler.h
+│   │   ├── triangle.cpp
+│   │   └── triangle.h
+│   └── usage.txt
+└── tcl
+
+
+=== Compile ===
+
+$ cd src/src
+$ make clean && make -j8 && make install
+$ cd ../demo
+$ make clean && make -j8 && make install
+$ cd ../..
+$ mkdir data/output
+check: $ ls ./bin (you should see two binaries surface-resample and metric-resample)
+
+=== Execution ===
+(Suppose you have wb_command and wb_view installed; time measures the execution time of surface-resample and metric-resample separately. You can ommit these if you will.)
+
+time ./bin/surface-resample --surface_in=./data/input/100307.L.very_inflated.native.surf.gii --current_sphere=./data/input/100307.L.sphere.rot.native.surf.gii --ico=6 --output=./data/output/newmsm.out.veryinf && time ./bin/metric-resample --metric_in=./data/input/100307.L.sulc.native.shape.gii --current_sphere=./data/input/100307.L.sphere.rot.native.surf.gii --ico=6 --output=./data/output/newmsm.out.sulc && wb_command -set-structure ./data/output/newmsm.out.veryinf-anat.surf.gii CORTEX_LEFT && wb_command -set-structure ./data/output/newmsm.out.sulc-resampled_data.func.gii CORTEX_LEFT && wb_view ./data/output/newmsm.out.veryinf-anat.surf.gii ./data/output/newmsm.out.sulc-resampled_data.func.gii
+
+(Surface and metric resample separately.)
+
+time ./bin/surface-resample --surface_in=./data/input/100307.L.very_inflated.native.surf.gii --current_sphere=./data/input/100307.L.sphere.rot.native.surf.gii --ico=6 --output=./data/output/newmsm.out.veryinf && wb_command -set-structure ./data/output/newmsm.out.veryinf-anat.surf.gii CORTEX_LEFT && wb_view ./data/output/newmsm.out.veryinf-anat.surf.gii
+
+time ./bin/metric-resample --metric_in=./data/input/100307.L.sulc.native.shape.gii --current_sphere=./data/input/100307.L.sphere.rot.native.surf.gii --ico=6 --output=./data/output/newmsm.out.sulc && wb_command -set-structure ./data/output/newmsm.out.sulc-resampled_data.func.gii CORTEX_LEFT && wb_view ./data/output/newmsm.out.veryinf-anat.surf.gii ./data/output/newmsm.out.sulc-resampled_data.func.gii
+
+time ./bin/metric-resample --metric_in=./data/input/100307.L.SmoothedMyelinMap_BC.native.func.gii --current_sphere=./data/input/100307.L.sphere.rot.native.surf.gii --ico=6 --output=./data/output/newmsm.out.myelin && wb_command -set-structure ./data/output/newmsm.out.myelin-resampled_data.func.gii CORTEX_LEFT && wb_view ./data/output/newmsm.out.veryinf-anat.surf.gii ./data/output/newmsm.out.myelin-resampled_data.func.gii
