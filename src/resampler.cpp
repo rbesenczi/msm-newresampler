@@ -52,6 +52,7 @@ MISCMATHS::FullBFMatrix Resampler::barycentric_data_interpolation(const Mesh& me
 
     MISCMATHS::FullBFMatrix data(1, metric_in.nvertices());
 
+    #pragma omp parallel for
     for (int i = 0; i < metric_in.nvertices(); i++)
         data.Set(1, i + 1, metric_in.get_pvalue(i));
 
@@ -59,6 +60,7 @@ MISCMATHS::FullBFMatrix Resampler::barycentric_data_interpolation(const Mesh& me
 
     MISCMATHS::FullBFMatrix interpolated_data (1, sphLow.nvertices());
 
+    #pragma omp parallel for
     for (int k = 0; k < sphLow.nvertices(); k++)
     {
         double val = 0.0;
@@ -93,14 +95,15 @@ vector<std::map<int,double>> Resampler::get_adaptive_barycentric_weights(const M
     reverse_reorder.resize(forward.size());
     adapt_weights.resize(forward.size());
 
-    for (int oldNode = 0; oldNode < numOldNodes; ++oldNode)//this loop can't be parallelized
+    for (int oldNode = 0; oldNode < numOldNodes; ++oldNode)
     {
         oldAreas[oldNode] = compute_vertex_area(oldNode, in_mesh);
         for (auto iter = reverse[oldNode].begin();
              iter != reverse[oldNode].end(); ++iter)
-            reverse_reorder[iter->first][oldNode] = iter->second;
+            reverse_reorder[iter->first][oldNode] = iter->second; //this loop can't be parallelized
     }
 
+    #pragma omp parallel for
     for (int newNode = 0; newNode < numNewNodes; ++newNode)
     {
             newAreas[newNode] = compute_vertex_area(newNode, sphLow);
@@ -119,19 +122,20 @@ vector<std::map<int,double>> Resampler::get_adaptive_barycentric_weights(const M
             }
     }
 
+    #pragma omp parallel for
     for (int newNode = 0; newNode < numNewNodes; ++newNode)
     {
         double weight_sum = 0.0;
-            for (auto &iter: adapt_weights[newNode])//begin area correction by multiplying by target node calc_area
-            {
-                iter.second *= oldAreas[iter.first] / correction[iter.first];
-                //divide the weights by their scatter sum, then multiply by current areas
-                weight_sum += iter.second;//and compute the sum
-            }
-            if (weight_sum != 0.0)
-                //this shouldn't happen unless no nodes remain due to roi, or node areas can be zero
-                for (auto &iter: adapt_weights[newNode])
-                    iter.second /= weight_sum;//and normalize to a sum of 1
+        for (auto &iter: adapt_weights[newNode])//begin area correction by multiplying by target node calc_area
+        {
+            iter.second *= oldAreas[iter.first] / correction[iter.first];
+            //divide the weights by their scatter sum, then multiply by current areas
+            weight_sum += iter.second;//and compute the sum
+        }
+        if (weight_sum != 0.0)
+            //this shouldn't happen unless no nodes remain due to roi, or node areas can be zero
+            for (auto &iter: adapt_weights[newNode])
+                iter.second /= weight_sum;//and normalize to a sum of 1
     }
 
     return adapt_weights;
@@ -140,24 +144,38 @@ vector<std::map<int,double>> Resampler::get_adaptive_barycentric_weights(const M
 vector<std::map<int,double>> Resampler::get_barycentric_weights(const Mesh& low, const Mesh& orig, const Octree& oct){
 
     std::vector<std::map<int,double>> weights;
+    weights.reserve(low.nvertices());
 
-    for (int k = 0; k < low.nvertices(); k++)
+    #pragma omp parallel
     {
-        Point v0, v1, v2;
-        int n0, n1, n2;
+        std::vector<std::map<int, double>> thread_private_weights;
 
-        Point ci = low.get_coord(k);
+        #pragma omp for nowait schedule(static)
+        for (int k = 0; k < low.nvertices(); k++)
+        {
+            Point v0, v1, v2;
+            int n0, n1, n2;
 
-        Triangle closest = oct.get_closest_triangle(ci);
+            Point ci = low.get_coord(k);
 
-        n0 = closest.get_vertex_no(0);
-        n1 = closest.get_vertex_no(1);
-        n2 = closest.get_vertex_no(2);
-        v0 = closest.get_vertex_coord(0);
-        v1 = closest.get_vertex_coord(1);
-        v2 = closest.get_vertex_coord(2);
+            Triangle closest = oct.get_closest_triangle(ci);
 
-        weights.emplace_back(calc_barycentric_weights(v0, v1, v2, ci, n0, n1, n2));
+            n0 = closest.get_vertex_no(0);
+            n1 = closest.get_vertex_no(1);
+            n2 = closest.get_vertex_no(2);
+            v0 = closest.get_vertex_coord(0);
+            v1 = closest.get_vertex_coord(1);
+            v2 = closest.get_vertex_coord(2);
+
+            thread_private_weights.emplace_back(calc_barycentric_weights(v0, v1, v2, ci, n0, n1, n2));
+        }
+
+        #pragma omp for schedule(static) ordered
+        for (int i = 0; i < omp_get_num_threads(); i++)
+        {
+            #pragma omp ordered
+            weights.insert(weights.end(), thread_private_weights.begin(), thread_private_weights.end());
+        }
     }
 
     return weights;
@@ -171,6 +189,7 @@ Mesh surface_resample(const Mesh& anatOrig, const Mesh& sphOrig, const Mesh& sph
 
     std::vector<map<int,double>> weights = resampler.get_barycentric_weights(sphLow, sphOrig, octreeSearch);
 
+    #pragma omp parallel for
     for(int i = 0; i < sphLow.nvertices(); i++)
     {
         Point newPt;
@@ -191,6 +210,7 @@ Mesh metric_resample(const Mesh& metric_in, const Mesh& sphLow) {
 
     Mesh output = sphLow;
 
+    #pragma omp parallel for
     for (int i = 0; i < sphLow.nvertices(); i++)
         output.set_pvalue(i, interpolated_data.Peek(1, i + 1));
 

@@ -5,7 +5,7 @@ SOFILES  = libfsl-newresampler.so
 LIBS     = -lfsl-miscmaths -lfsl-giftiio -lfsl-newmeshclass
 OBJS     = meshException.h point.o mpoint.o triangle.o\
 		   mesh.o node.o octree.o resampler.o
-USRCXXFLAGS += -Wall
+USRCXXFLAGS += -Wall -fopenmp
 
 all: libfsl-newresampler.so
 

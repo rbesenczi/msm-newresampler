@@ -45,6 +45,8 @@ SOFTWARE.
 #ifndef NEWRESAMPLER_RESAMPLER_H
 #define NEWRESAMPLER_RESAMPLER_H
 
+#include <omp.h>
+
 #include "miscmaths/bfmatrix.h"
 
 #include "mesh.h"
