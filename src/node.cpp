@@ -18,6 +18,10 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+Octree search code used with the permission of Tim Coalson under the same licence as above.
+Copyright (C) Washington University School of Medicine
+Original: https://github.com/Washington-University/workbench/blob/master/src/Common/OctTree.h
 */
 #include "node.h"
 
