@@ -19,9 +19,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-Adaptive Barycentric code used with the permission of
-Tim Coulson under the same licence as above.
+Adaptive Barycentric code used with the permission of Tim Coalson under the same licence as above.
 Copyright (C) 2014  Washington University School of Medicine
+Original: https://github.com/Washington-University/workbench/blob/master/src/Files/SurfaceResamplingHelper.cxx
 */
 #include "resampler.h"
 
@@ -56,8 +56,6 @@ MISCMATHS::FullBFMatrix Resampler::barycentric_data_interpolation(const Mesh& me
 }
 
 vector<std::map<int,double>> Resampler::get_adaptive_barycentric_weights(const Mesh& in_mesh, const Mesh& sphLow){
-/* ADAPTIVE BARYCENTRIC CODE SUPPLIED BY TIM COULSON AT WASHU Copyright (C) 2014  Washington University School of Medicine */
-/* ORIGINAL CODE: https://github.com/Washington-University/workbench/blob/master/src/Files/SurfaceResamplingHelper.cxx     */
 
     Octree octreeSearch_in(in_mesh);
     vector<map<int,double>> forward = get_barycentric_weights(sphLow, in_mesh, octreeSearch_in);

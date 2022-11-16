@@ -56,9 +56,7 @@ void Octree::initialize_tree(const std::vector<Triangle>& triangles) {
 }
 
 void Octree::add_triangle(Node* node, const Triangle& triangle, const Point& lower_bounds, const Point& upper_bounds) {
-/* This piece of code is inspired by Tim Coulson at WASHU Copyright (C) 2014  Washington University School of Medicine */
-/* This function uses the same logic as the code of Tim Coulson at WASHU */
-/* Original code: https://github.com/Washington-University/workbench/blob/master/src/Files/SignedDistanceHelper.cxx#L829 */
+
     if (node->is_leaf)
     {
         node->push_triangle(triangle);
