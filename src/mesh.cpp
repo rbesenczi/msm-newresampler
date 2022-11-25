@@ -241,6 +241,23 @@ void Mesh::initialize_pvalues(int dim, bool appendFieldData) {
     pvalues.resize(dim + pvalues.size(), std::vector<float>(points.size(), 0.0));
 }
 
+double Mesh::calculate_MaxVD() const {
+
+    double dist, MaxVD = std::numeric_limits<double>::lowest();
+    const double RAD = 100.0;
+
+    for (long unsigned int i = 0; i < points.size(); i++)
+    {
+        Point control_point = points[i]->get_coord();
+        for (auto it = nbegin(i); it != nend(i); it++)
+        {
+            dist = 2 * RAD * asin((control_point - get_coord(*it)).norm() / (2 * RAD));
+            if(dist > MaxVD) MaxVD = dist;
+        }
+    }
+    return MaxVD;
+}
+
 Mesh::FileType Mesh::meshFileType(const string &filename) const {
     // 1: ascii, 2:vtk, 3: gii, 4 as .txt (for supplyng data in a text file) -1: unknown
     if (filename.size() <= 5) { return FileType::DEFAULT; }
@@ -1038,6 +1055,29 @@ double compute_vertex_area(int ind, const Mesh& mesh) {
         sum += mesh.get_triangle_area(*i);
 
     return sum / mesh.get_total_triangles(ind);
+}
+
+NEWMAT::ReturnMatrix rotate_vec(const NEWMAT::ColumnVector& vec, double w1, double w2, double w3) {
+
+    NEWMAT::Matrix rotation(3, 3);
+    NEWMAT::ColumnVector rotated_vec(3);
+
+    rotation << cos(w2) * cos(w3)
+        << -cos(w1) * sin(w3) + sin(w1) * sin(w2) * cos(w3)
+        << sin(w1) * sin(w3) + cos(w1) * sin(w2) * cos(w3)
+        << cos(w2) * sin(w3)
+        << cos(w1) * cos(w3) + sin(w1) * sin(w2) * sin(w3)
+        << -sin(w1) * cos(w3) + cos(w1) * sin(w2)*sin(w3)
+        << -sin(w2)
+        << sin(w1) * cos(w2)
+        << cos(w1) * cos(w2);
+
+    rotation = rotation.t();
+
+    rotated_vec = rotation * vec;
+    rotated_vec.Release();
+
+    return rotated_vec;
 }
 
 bool operator==(const Mesh& M1, const Mesh& M2) {

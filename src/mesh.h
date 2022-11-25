@@ -69,6 +69,7 @@ public:
     double get_triangle_area(int tID) const { return triangles[tID].get_area(); }
     Point local_normal(int pt) const;
     std::vector<Point> get_bounding_box() const;
+    double calculate_MaxVD() const;
 
     //---MANIPULATION---//
     std::vector<std::shared_ptr<Mpoint>>& get_all_points() { return points; }
@@ -127,6 +128,7 @@ void retessellate(Mesh&);
 //---Utilities---//
 void true_rescale(Mesh& m, double rad);
 double compute_vertex_area(int, const Mesh &); // averages adjoining face areas for each vertex
+NEWMAT::ReturnMatrix rotate_vec(const NEWMAT::ColumnVector& vec, double w1, double w2, double w3);
 
 //---Mesh operators---//
 bool operator==(const Mesh &M1, const Mesh &M2);
