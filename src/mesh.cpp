@@ -258,6 +258,24 @@ double Mesh::calculate_MaxVD() const {
     return MaxVD;
 }
 
+double Mesh::Calculate_MVD() const {
+
+    // mean_inter_vertex_distance
+    // calculate from first vertex only so not true unless regularised!
+    double k = 0.0, kr = 0.0;
+    for (int i = 0; i < nvertices(); i++)
+    {
+        Point Sp = get_coord(i);
+        for (auto j = nbegin(i); j != nend(i); j++)
+        {
+            k++;
+            kr += (get_coord(*j) - Sp).norm();
+        }
+    }
+
+    return kr / k;
+}
+
 Mesh::FileType Mesh::meshFileType(const string &filename) const {
     // 1: ascii, 2:vtk, 3: gii, 4 as .txt (for supplyng data in a text file) -1: unknown
     if (filename.size() <= 5) { return FileType::DEFAULT; }
@@ -849,6 +867,95 @@ std::vector<Point> Mesh::get_bounding_box() const {
     return bounding_box;
 }
 
+int Mesh::get_resolution() const {
+
+    switch(points.size())
+    {
+        case 42:
+            return 1;
+        case 162:
+            return 2;
+        case 642:
+            return 3;
+        case 2562:
+            return 4;
+        case 10242:
+            return 5;
+        case 40962:
+            return 6;
+        default:
+            throw MeshException(
+                    " Mesh::get_resolution mesh is not an icosphere or has not been initialised");
+    }
+}
+
+Point Mesh::estimate_origin() const {
+
+    std::vector<Point> p(4);
+
+    double m11, m12, m13, m14;
+
+    for (int i = 1; i <= 4; i++)
+        p[i - 1] = points[std::floor(points.size() / i) - 1]->get_coord();
+
+    NEWMAT::Matrix a(4,4);
+    Point c;
+
+    //equation of a sphere as determinant of its variables and 4 sampled points
+    for (int i = 0; i < 4; i++)
+    {   //find minor 11
+        a(i+1,1) = p[i].X;
+        a(i+1,2) = p[i].Y;
+        a(i+1,3) = p[i].Z;
+        a(i+1,4) = 1;
+    }
+    m11 = a.Determinant();
+
+    for (int i = 0; i < 4; i++)
+    {   //find minor 12
+        a(i+1,1) = p[i].X * p[i].X + p[i].Y * p[i].Y + p[i].Z * p[i].Z;
+        a(i+1,2) = p[i].Y;
+        a(i+1,3) = p[i].Z;
+        a(i+1,4) = 1;
+    }
+    m12 = a.Determinant();
+
+    for (int i = 0; i < 4; i++)
+    {   //find minor 13
+        a(i+1,1) = p[i].X * p[i].X + p[i].Y * p[i].Y + p[i].Z * p[i].Z;
+        a(i+1,2) = p[i].X;
+        a(i+1,3) = p[i].Z;
+        a(i+1,4) = 1;
+    }
+    m13 = a.Determinant();
+
+    for (int i = 0; i < 4; i++)
+    {   //find minor 14
+        a(i+1,1) = p[i].X * p[i].X + p[i].Y * p[i].Y + p[i].Z * p[i].Z;
+        a(i+1,2) = p[i].X;
+        a(i+1,3) = p[i].Y;
+        a(i+1,4) = 1;
+    }
+    m14  = a.Determinant();
+
+    for (int i = 0; i < 4; i++)
+    {   // find minor 15
+        a(i+1,1) = p[i].X * p[i].X + p[i].Y * p[i].Y + p[i].Z * p[i].Z;
+        a(i+1,2) = p[i].X;
+        a(i+1,3) = p[i].Y;
+        a(i+1,4) = p[i].Y;
+    }
+
+    if (m11 != 0.0)
+    {
+        c.X =  0.5 * (m12 / m11); //center of sphere
+        c.Y = -0.5 * (m13 / m11);
+        c.Z =  0.5 * (m14 / m11);
+    }
+
+    return c;
+}
+
 void retessellate(Mesh &mesh) {
 
     std::vector<std::shared_ptr<Mpoint>> added_points;
@@ -935,6 +1042,113 @@ void retessellate(Mesh &mesh) {
         tot_triangles++;
         Triangle t3(p2, v1, p0, tot_triangles);
         tot_triangles++;
+
+        mesh.push_triangle(t0);
+        mesh.push_triangle(t1);
+        mesh.push_triangle(t2);
+        mesh.push_triangle(t3);
+    }
+
+    for (auto i = mesh.vbegin(); i != mesh.vend(); i++)
+        (*i)->normalize();
+}
+
+void retessellate(Mesh& mesh, std::vector<std::vector<int>>& old_tr_nbours) {
+
+    std::vector<std::shared_ptr<Mpoint>> added_points;
+    std::vector<Triangle> tr = mesh.get_all_triangles();
+
+    old_tr_nbours.clear();
+    old_tr_nbours.reserve(tr.size());
+
+    int count = 0;
+    int tot_triangles = 0;
+
+    mesh.clear_triangles();
+
+    for (auto &_point: mesh.get_all_points())
+        _point->clear();
+
+    for (auto &t: tr) {
+
+        std::shared_ptr<Mpoint> v0 = t.get_vertex_ptr(0);
+        std::shared_ptr<Mpoint> v1 = t.get_vertex_ptr(1);
+        std::shared_ptr<Mpoint> v2 = t.get_vertex_ptr(2);
+
+        // creates new points at the center of existing faces
+        Point pt0((v1->get_coord().X + v2->get_coord().X) / 2,
+                  (v1->get_coord().Y + v2->get_coord().Y) / 2,
+                  (v1->get_coord().Z + v2->get_coord().Z) / 2);
+        Point pt2((v0->get_coord().X + v1->get_coord().X) / 2,
+                  (v0->get_coord().Y + v1->get_coord().Y) / 2,
+                  (v0->get_coord().Z + v1->get_coord().Z) / 2);
+        Point pt1((v0->get_coord().X + v2->get_coord().X) / 2,
+                  (v0->get_coord().Y + v2->get_coord().Y) / 2,
+                  (v0->get_coord().Z + v2->get_coord().Z) / 2);
+
+        std::shared_ptr<Mpoint> p1, p2, p0;
+
+        bool b0 = true, b1 = true, b2 = true;
+        count = 0;
+        int index = 0;
+        for (const auto &added_point: added_points) {
+            index++;
+            Point current = added_point->get_coord();
+            if (pt0 == current) {
+                b0 = false;
+                p0 = added_point;
+            }
+            if (pt1 == current) {
+                b1 = false;
+                p1 = added_point;
+            }
+            if (pt2 == current) {
+                b2 = false;
+                p2 = added_point;
+            }
+        }
+
+        if (b0) {
+            p0 = std::make_shared<Mpoint>(pt0, mesh.nvertices() + count);
+            count++;
+        }
+        if (b1) {
+            p1 = std::make_shared<Mpoint>(pt1, mesh.nvertices() + count);
+            count++;
+        }
+        if (b2) {
+            p2 = std::make_shared<Mpoint>(pt2, mesh.nvertices() + count);
+            count++;
+        }
+
+        if (b0) {
+            mesh.push_point(p0);
+            added_points.push_back(p0);
+        }
+        if (b1) {
+            mesh.push_point(p1);
+            added_points.push_back(p1);
+        }
+        if (b2) {
+            mesh.push_point((p2));
+            added_points.push_back(p2);
+        }
+
+        std::vector<int> tr_nbours(4);
+        Triangle t0(p2, p0, p1, tot_triangles);
+        tr_nbours.push_back(tot_triangles);
+        tot_triangles++;
+        Triangle t1(p1, v0, p2, tot_triangles);
+        tr_nbours.push_back(tot_triangles);
+        tot_triangles++;
+        Triangle t2(p0, v2, p1, tot_triangles);
+        tr_nbours.push_back(tot_triangles);
+        tot_triangles++;
+        Triangle t3(p2, v1, p0, tot_triangles);
+        tr_nbours.push_back(tot_triangles);
+        tot_triangles++;
+
+        old_tr_nbours.push_back(tr_nbours);
 
         mesh.push_triangle(t0);
         mesh.push_triangle(t1);
@@ -1036,6 +1250,18 @@ Mesh make_mesh_from_icosa(int n) {
     return ret;
 }
 
+void check_scale(Mesh& in, const Mesh& ref) {
+
+    Point cr = in.get_coord(0),
+          cr2 = in.get_coord(1),
+          cr3 = ref.get_coord(1);
+
+    if (std::abs(cr.norm() - cr2.norm()) > 1e-3 ||
+        std::abs(cr.norm() - cr3.norm()) > 1e-3 ||
+        std::abs(cr2.norm() - cr3.norm()) > 1e-3)
+        true_rescale(in, cr3.norm());
+}
+
 void true_rescale(Mesh& mesh, double rad) {
 // rescales sphere vertices to have equal radii
     for (int i = 0; i < mesh.nvertices(); i++)
@@ -1044,6 +1270,42 @@ void true_rescale(Mesh& mesh, double rad) {
         cr.normalize();
         cr = cr * rad;
         mesh.set_coord(i, cr);
+    }
+}
+
+void recentre(Mesh& sphere) {
+
+    Point mean = sphere.estimate_origin();
+
+    if(mean.norm() > 1e-2)
+    {
+        NEWMAT::Matrix translate(4, 4);
+        translate = 0;
+        translate(1, 1) = 1;
+        translate(2, 2) = 1;
+        translate(3, 3) = 1;
+        translate(4, 4) = 1;
+        translate(1, 4) = -mean.X;
+        translate(2, 4) = -mean.Y;
+        translate(3, 4) = -mean.Z;
+
+        for (auto i = sphere.vbegin(); i != sphere.vend(); i++)
+        {
+            NEWMAT::ColumnVector P_in(4);
+            Point p = (*i)->get_coord(), p2;
+            if(p.norm() != 0.0)
+            {
+                P_in(1) = p.X;
+                P_in(2) = p.Y;
+                P_in(3) = p.Z;
+                P_in(4) = 1;
+                P_in = translate * P_in;
+                p2.X = P_in(1);
+                p2.Y = P_in(2);
+                p2.Z = P_in(3);
+                (*i)->set_coord(p2);
+            }
+        }
     }
 }
 

@@ -69,6 +69,8 @@ public:
     double get_triangle_area(int tID) const { return triangles[tID].get_area(); }
     Point local_normal(int pt) const;
     std::vector<Point> get_bounding_box() const;
+    int get_resolution() const;
+    double Calculate_MVD() const;
     double calculate_MaxVD() const;
 
     //---MANIPULATION---//
@@ -84,6 +86,7 @@ public:
     void push_triangle(const Triangle &t);
     void clear();
     void clear_data();
+    Point estimate_origin() const;
 
     //---ITERATORS---//
     std::vector<std::shared_ptr<Mpoint>>::const_iterator vbegin() const { return points.begin(); };
@@ -124,9 +127,13 @@ public:
 //---Functions to generate regular icosahedron---//
 Mesh make_mesh_from_icosa(int n);
 void retessellate(Mesh&);
+void retessellate(Mesh&, std::vector<std::vector<int>>&);
 
 //---Utilities---//
+void check_scale(Mesh& in, const Mesh& ref);
 void true_rescale(Mesh& m, double rad);
+void recentre(Mesh& sphere);
+
 double compute_vertex_area(int, const Mesh &); // averages adjoining face areas for each vertex
 NEWMAT::ReturnMatrix rotate_vec(const NEWMAT::ColumnVector& vec, double w1, double w2, double w3);
 
