@@ -42,11 +42,15 @@ public:
     void normalize();
 };
 
+struct Tangs { Point e1, e2; };
+
 //---Utility functions related with Point---//
 bool SameSide(const Point &, const Point &, const Point &, const Point &);
 bool PointInTriangle(const Point &, const Point &, const Point &, const Point &);
 Point projectPoint(const Point &, const Point &, const Point &, const Point &, Point &);
+void projectPoint(const Point& vb, const Tangs& T, double e1coord, double e2coord);
 double computeArea(const Point &, const Point &, const Point &);
+NEWMAT::Matrix form_matrix_from_points(const Point& p1, const Point& p2, const Point& p3, bool trans);
 
 //---Point operators---//
 double operator|(const Point &p1, const Point &p2); // dot product
@@ -64,6 +68,7 @@ bool operator==(const Point &p1, const Point &p2);
 bool operator!=(const Point &p1, const Point &p2);
 
 std::ostream& operator<<(std::ostream&, const Point&);
+
 } //namespace newresampler
 
 #endif //NEWRESAMPLER_POINT_H

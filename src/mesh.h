@@ -67,7 +67,33 @@ public:
     const std::vector<Triangle>& get_all_triangles() const { return triangles; }
     int get_total_triangles(int i) const;
     double get_triangle_area(int tID) const { return triangles[tID].get_area(); }
+
+    const Triangle& get_triangle(int n) const {
+        if (n >= (int) triangles.size() || triangles.empty())
+            throw MeshException("get_triangle: index exceeds face dimensions");
+        return triangles[n];
+    }
+
+    const Triangle& get_triangle_from_vertex(int n, int ID) const {
+        if (n >= (int) triangles.size() || (int) triangles.empty())
+            throw MeshException("get_triangle: index exceeds face dimensions");
+        return triangles[points[n]->get_trID(ID)];
+    }
+
+    const Point& get_triangle_vertex(int n, int i) const {
+        if (n >= (int) triangles.size() || triangles.empty())
+            throw MeshException("get_triangle: index exceeds face dimensions");
+        return triangles[n].get_vertex_coord(i);
+    }
+
+    const Point& get_normal(int n) const {
+        if (normals.size() < points.size())
+            throw MeshException("get_normal: normals have not been calculated, apply estimate_normals() first");
+        return normals[n];
+    }
+
     Point local_normal(int pt) const;
+    void estimate_normals();
     std::vector<Point> get_bounding_box() const;
     int get_resolution() const;
     double Calculate_MVD() const;
@@ -133,6 +159,9 @@ void retessellate(Mesh&, std::vector<std::vector<int>>&);
 void check_scale(Mesh& in, const Mesh& ref);
 void true_rescale(Mesh& m, double rad);
 void recentre(Mesh& sphere);
+NEWMAT::ColumnVector calculate_strains(int index, const std::vector<int>& kept, const Mesh& orig, const Mesh& final, const std::shared_ptr<NEWMAT::Matrix>& PrincipalStretches);
+Mesh calculate_strains(double fit_radius, const Mesh& orig, const Mesh& final, const std::shared_ptr<NEWMAT::Matrix>& PrincipalStretches);
+Tangs calculate_tangs(int ind, const Mesh& SPH_in);
 
 double compute_vertex_area(int, const Mesh &); // averages adjoining face areas for each vertex
 NEWMAT::ReturnMatrix rotate_vec(const NEWMAT::ColumnVector& vec, double w1, double w2, double w3);

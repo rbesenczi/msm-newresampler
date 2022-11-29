@@ -54,6 +54,8 @@ public:
     std::vector<std::map<int,double>> get_adaptive_barycentric_weights(const Mesh& in_mesh, const Mesh & sphLow);
     std::vector<std::map<int,double>> get_barycentric_weights(const Mesh& low, const Mesh& orig, const Octree& oct);
 };
+//---UTILITY---//
+Mesh project_mesh(const Mesh& orig, const Mesh& target, const Mesh& anat);
 //---ENTRY POINTS FOR RESAMPLER---//
 Mesh surface_resample(const Mesh&, const Mesh&, const Mesh&);
 Mesh metric_resample(const Mesh&, const Mesh&);

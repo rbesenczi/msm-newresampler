@@ -66,6 +66,11 @@ Point projectPoint(const Point &vb, const Point &v1, const Point &v2,
     return s3;
 }
 
+void projectPoint(const Point& vb, const Tangs& T, double& e1coord, double& e2coord) {
+    e1coord = vb | T.e1;
+    e2coord = vb | T.e2;
+}
+
 double computeArea(const Point &v0, const Point &v1, const Point &v2) {
 
     Point res, v0v1, v0v2;
@@ -75,6 +80,26 @@ double computeArea(const Point &v0, const Point &v1, const Point &v2) {
     res = v0v1 * v0v2;
 
     return 0.5 * res.norm();
+}
+
+NEWMAT::Matrix form_matrix_from_points(Point p1, Point p2, Point p3, bool trans) {
+
+    NEWMAT::Matrix T(3,3);
+
+    T(1,1) = p1.X;
+    T(1,2) = p2.X;
+    T(1,3) = p3.X;
+    T(2,1) = p1.Y;
+    T(2,2) = p2.Y;
+    T(2,3) = p3.Y;
+    T(3,1) = p1.Z;
+    T(3,2) = p2.Z;
+    T(3,3) = p3.Z;
+
+    if(trans)
+        return T.t();
+    else
+        return T;
 }
 
 double operator|(const Point &v1, const Point &v2) {

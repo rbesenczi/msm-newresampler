@@ -148,6 +148,15 @@ Point Mesh::local_normal(int pt) const {
     return v;
 }
 
+void Mesh::estimate_normals() {
+
+    normals.clear();
+    normals.reserve(points.size());
+
+    for (int i = 0; i < (int)points.size(); i++)
+        normals.emplace_back(local_normal(i));
+}
+
 vector<float> Mesh::getPointsAsVectors() const {
 
     vector<float> ret;
@@ -1307,6 +1316,396 @@ void recentre(Mesh& sphere) {
             }
         }
     }
+}
+
+bool check_for_intersections(int ind, double eps, Mesh& IN) {
+
+    Point c = IN.get_coord(ind);
+    Point V = c;
+    V.normalize();
+    int a = 0;
+
+    const Triangle& tr = IN.get_triangle_from_vertex(ind, 0);
+    c = IN.get_coord(ind);
+
+    Point N = tr.normal();
+    for (auto j = IN.tIDbegin(ind); j != IN.tIDend(ind); j++)
+    {
+        const Triangle& tr2 = IN.get_triangle(*j);
+        Point N2 = tr2.normal();
+
+        a = a || ((N|N2) <= 0.5);
+
+        if (a == 1) break;
+    }
+
+    return a;
+}
+
+Point spatialgradient(int index, const Mesh& SOURCE) {
+// spatial gradient for vertex trianglular mesh
+    Point grad, ci = SOURCE.get_coord(index);
+
+    for (auto j = SOURCE.tIDbegin(index); j != SOURCE.tIDend(index); j++)
+    {
+        Point v0 = SOURCE.get_triangle_vertex(*j, 0),
+              v1 = SOURCE.get_triangle_vertex(*j, 1),
+              v2 = SOURCE.get_triangle_vertex(*j, 2),
+              dA;
+
+        if ((ci - v0).norm() == 0)
+            dA = computeGradientOfBarycentricTriangle(v1, v2, v0);
+        else if ((ci - v1).norm() == 0)
+            dA = computeGradientOfBarycentricTriangle(v2, v0, v1);
+        else
+            dA = computeGradientOfBarycentricTriangle(v0, v1, v2);
+
+        grad = grad + dA;
+    }
+    return grad;
+}
+
+void unfold(Mesh& SOURCE) {
+
+    // check for intersections
+    std::vector<int> foldedvertices;
+    std::vector<Point> foldinggradients;
+    Point grad, ppp, ci;
+    double current_stepsize;
+    Mesh tmp = SOURCE;
+    Point pp;
+    bool folded = true;
+    int it = 0;
+    const double RAD = 100;
+
+    while (folded)
+    {
+        foldedvertices.clear();
+        foldinggradients.clear();
+
+        for (int i = 0; i < SOURCE.nvertices(); i++)
+            if (check_for_intersections(i, 0, SOURCE))
+                // identfy points that are flipped.
+                foldedvertices.push_back(i);
+
+        if (foldedvertices.empty()) folded = false;
+        else if (it % 100 == 0)
+            cout << " mesh is folded, total folded vertices =" << foldedvertices.size() << " unfold " << endl;
+
+        for (int foldedvertice : foldedvertices)
+        {
+            grad = spatialgradient(foldedvertice, SOURCE);  // estimates gradient of triangle area for all vertices that are detected as folded
+            foldinggradients.push_back(grad);
+        }
+
+        for (unsigned int i = 0; i < foldedvertices.size(); i++)
+        {
+            current_stepsize = 1;
+            ci = SOURCE.get_coord(foldedvertices[i]);
+            grad = foldinggradients[i];
+            do
+            {
+                pp = ci - grad * current_stepsize; // gradient points in direction of increasing area therefore opposite to desired direction
+                pp.normalize();
+                SOURCE.set_coord(foldedvertices[i],pp*RAD);
+                current_stepsize /= 2.0;
+            }
+            while(check_for_intersections(foldedvertices[i],0,SOURCE) == 1 && current_stepsize > 1e-3);
+
+            SOURCE.set_coord(foldedvertices[i],pp*RAD);
+        }
+        it++;
+        if(it == 1000) break;
+    }
+}
+
+NEWMAT::Matrix get_coordinate_transformation(double dNdT1,double dNdT2, NEWMAT::ColumnVector& Norm) {
+
+    Point G1(1, 0, dNdT1);
+    Point G2(0, 1, dNdT2);
+    Point G3 = G1 * G2;
+
+    G3 = G3 / sqrt((G3|G3));
+
+    NEWMAT::Matrix G(3,3);
+
+    G(1,1) = G1.X;
+    G(1,2) = G2.X;
+    G(1,3) = G3.X;
+    G(2,1) = G1.Y;
+    G(2,2) = G2.Y;
+    G(2,3) = G3.Y;
+    G(3,1) = G1.Z;
+    G(3,2) = G2.Z;
+    G(3,3) = G3.Z;
+    Norm(1) = G3.X;
+    Norm(2) = G3.Y;
+    Norm(3) = G3.Z;
+
+    return (G.i()).t();
+}
+
+NEWMAT::ColumnVector calculate_strains(int index, const std::vector<int>& kept, const Mesh& orig, const Mesh& final, const std::shared_ptr<NEWMAT::Matrix>& PrincipalStretches){
+
+    NEWMAT::ColumnVector STRAINS(4); STRAINS = 0;
+    Point Normal_O = orig.get_normal(index - 1);
+    NEWMAT::Matrix TRANS(3,3),
+                   principal_STRAINS(2, orig.nvertices());
+    double T1_coord = 0.0, T2_coord = 0.0;
+    Point orig_tang,final_tang,tmp;
+    //Tangent Tang;
+    NEWMAT::Matrix a, b, c, d;
+    int maxind, minind;
+
+    Tangs T = calculate_tangs(index - 1, orig);
+
+    TRANS = form_matrix_from_points(T.e1, T.e2, Normal_O, true);
+
+    NEWMAT::Matrix pseudo_inv, pseudo_V, pseudo_U;
+    NEWMAT::DiagonalMatrix pseudo_D;
+    NEWMAT::Matrix alpha(kept.size(),6),
+                   N(kept.size(),1),
+                   n(kept.size(),1),
+                   t1(kept.size(),1),
+                   t2(kept.size(),1);
+    alpha = 0; N = 0; n = 0; t1 = 0; t2 = 0;
+
+    for(int j = 0; j < (int)kept.size(); j++)
+    {
+        tmp = orig.get_coord(kept[j]) - orig.get_coord(index - 1);
+        projectPoint(tmp, T, T1_coord, T2_coord);
+        N(j+1,1) = tmp | Normal_O;
+
+        // fit poly
+        alpha(j+1,2) = T1_coord;
+        alpha(j+1,3) = T2_coord;
+        alpha(j+1,4) = 0.5 * T1_coord * T1_coord;
+        alpha(j+1,5) = 0.5 * T2_coord * T2_coord;
+        alpha(j+1,6) = T1_coord * T2_coord;
+
+        // get transformed coords
+        tmp = final.get_coord(kept[j]) - final.get_coord(index - 1);
+        projectPoint(tmp, T, T1_coord, T2_coord);
+
+        n(j + 1,1) = tmp | Normal_O;
+        t1(j + 1,1) = T1_coord;
+        t2(j + 1,1) = T2_coord;
+    }
+
+    SVD(alpha, pseudo_D, pseudo_U, pseudo_V);
+
+    for (int i = 1; i <= pseudo_D.Nrows(); i++)
+        if (pseudo_D(i) != 0)
+            pseudo_D(i) = 1 / pseudo_D(i);
+
+    pseudo_inv = pseudo_V * pseudo_D * pseudo_U.t();
+
+    // get coeffieicnts for different fits
+    a = pseudo_inv * N;
+    b = pseudo_inv * t1;
+    c = pseudo_inv * t2;
+    d = pseudo_inv * n;
+
+    double dNdT1, dNdT2, dt1dT1, dt1dT2, dt2dT1, dt2dT2, dndT1, dndT2;
+    dNdT1 = a(2,1); dNdT2 = a(3,1);
+    dt1dT1 = b(2,1); dt1dT2 = b(3,1);
+    dt2dT1 = c(2,1); dt2dT2 = c(3,1);
+    dndT1 = d(2,1); dndT2 = d(3,1);
+
+    NEWMAT::ColumnVector G3(3);
+    NEWMAT::Matrix G_cont = get_coordinate_transformation(dNdT1, dNdT2, G3);
+
+    Point g1(dt1dT1,dt2dT1,dndT1);
+    Point g2(dt1dT2,dt2dT2,dndT2);
+    Point g3 = g1 * g2; g3 = g3 / sqrt((g3|g3));
+
+    NEWMAT::Matrix g(3,3);
+    g(1,1)=g1.X; g(1,2)=g2.X; g(1,3)=g3.X;
+    g(2,1)=g1.Y; g(2,2)=g2.Y; g(2,3)=g3.Y;
+    g(3,1)=g1.Z; g(3,2)=g2.Z; g(3,3)=g3.Z;
+
+    NEWMAT::Matrix F = g * G_cont.t();
+    NEWMAT::Matrix C = F.t() * F;
+
+    NEWMAT::DiagonalMatrix Omega;
+    NEWMAT::Matrix U, Umax, Umin;
+    SVD(C,Omega,U);
+
+    NEWMAT::Matrix mm = G3.t() * U;
+
+    if (abs(mm(1, 1)) >= abs(mm(1, 2)) && abs(mm(1, 1)) >= abs(mm(1, 3)))
+        if (sqrt(Omega(2)) > sqrt(Omega(3)))
+        {
+            maxind = 2;
+            minind = 3;
+        }
+        else
+        {
+            maxind = 3;
+            minind = 2;
+        }
+
+    else if (abs(mm(1, 2)) >= abs(mm(1, 1)) && abs(mm(1, 2)) >= abs(mm(1, 3)))
+        if (sqrt(Omega(1)) > sqrt(Omega(3)))
+        {
+            maxind = 1;
+            minind = 3;
+        }
+        else
+        {
+            maxind = 3;
+            minind = 1;
+        }
+    else
+    {
+        if (sqrt(Omega(1)) > sqrt(Omega(2)))
+        {
+            maxind = 1;
+            minind = 2;
+        }
+        else
+        {
+            maxind = 2;
+            minind = 1;
+        }
+    }
+
+    STRAINS(1) = sqrt(Omega(maxind));
+    STRAINS(2) = sqrt(Omega(minind));
+    Umax = TRANS.i() * U.SubMatrix(1,3,maxind,maxind);
+    Umin = TRANS.i() * U.SubMatrix(1,3,minind,minind);
+
+    if(PrincipalStretches)
+    {
+        (*PrincipalStretches)(index,1) = Umax(1,1);
+        (*PrincipalStretches)(index,2) = Umax(2,1);
+        (*PrincipalStretches)(index,3) = Umax(3,1);
+        (*PrincipalStretches)(index,4) = Umin(1,1);
+        (*PrincipalStretches)(index,5) = Umin(2,1);
+        (*PrincipalStretches)(index,6) = Umin(3,1);
+    }
+
+    STRAINS(3) = 0.5 * (STRAINS(1)*STRAINS(1) - 1);
+    STRAINS(4) = 0.5 * (STRAINS(2)*STRAINS(2) - 1);
+
+    return STRAINS;
+}
+
+Mesh calculate_strains(double fit_radius, const Mesh& orig, const Mesh &final, const std::shared_ptr<NEWMAT::Matrix>& PrincipalStretches){
+
+    Mesh strain = final;
+    NEWMAT::Matrix strains(4, orig.nvertices());
+    NEWMAT::ColumnVector node_strain;
+    double dir_chk1, dir_chk2, dist, fit_temp;
+
+    vector<int> kept;
+
+    int neighbour, numneighbours = orig.nvertices();
+
+    if(PrincipalStretches) PrincipalStretches->ReSize(orig.nvertices(), 6);
+
+    for (int index = 1; index <= orig.nvertices(); index++)
+    {
+        //if(REL) numneighbours = REL->Nrows(index);
+        fit_temp = fit_radius;
+        while (kept.size() <= 8)
+        {
+            kept.clear();
+            for(int j = 1; j <= numneighbours; j++)
+            {
+                /*if(REL) neighbour = (*REL)(j,index);
+                else*/ neighbour = j;
+
+                dist = (orig.get_coord(index - 1) - orig.get_coord(neighbour - 1)).norm();
+
+                // reject points with normals in opposite directions
+                dir_chk1 = orig.get_normal(neighbour - 1) | orig.get_normal(index - 1);
+                dir_chk2 = 1; //Normals_F[j-1]|Normals_F[index-1]; ////SET to 1?
+
+                if(dist <= fit_temp && dir_chk1 >= 0 && dir_chk2 >= 0)
+                    kept.push_back(neighbour - 1);
+            }
+
+            if(kept.size() > 8)
+            {
+                node_strain = calculate_strains(index, kept, orig, final, PrincipalStretches);
+                strains(1, index) = node_strain(1);
+                strains(2, index) = node_strain(2);
+                strains(3, index) = node_strain(3);
+                strains(4, index) = node_strain(4);
+            }
+            else
+                fit_temp += 0.5;
+        }
+        kept.clear();
+    }
+
+    strain.set_pvalues(strains);
+
+    return strain;
+}
+
+Tangs calculate_tangs(int ind, const Mesh& SPH_in) {
+
+    Tangs T;
+    double mag;
+    Point a = SPH_in.local_normal(ind);
+    Point tmp = SPH_in.get_coord(ind);
+
+    if((a|tmp) < 0) a = a * -1;
+
+    if(abs(a.X) >= abs(a.Y) && abs(a.X) >= abs(a.Z))
+    {
+        mag = sqrt(a.Z*a.Z + a.Y*a.Y);
+        if(mag == 0)
+        {
+            T.e1.X = 0;
+            T.e1.Y = 0;
+            T.e1.Z = 1;
+        }
+        else
+        {
+            T.e1.X = 0;
+            T.e1.Y = -a.Z /mag;
+            T.e1.Z = a.Y /mag;
+        }
+    }
+    else if(abs(a.Y) >= abs(a.X) && abs(a.Y) >= abs(a.Z))
+    {
+        mag = sqrt(a.Z*a.Z + a.X*a.X);
+        if(mag == 0)
+        {
+            T.e1.X = 0;
+            T.e1.Y = 0;
+            T.e1.Z = 1;
+        }
+        else
+        {
+            T.e1.X = -a.Z/mag;
+            T.e1.Y = 0;
+            T.e1.Z = a.X /mag;
+        }
+    }
+    else
+    {
+        mag = sqrt(a.Y*a.Y + a.X*a.X);
+        if(mag == 0)
+        {
+            T.e1.X = 1;
+            T.e1.Y = 0;
+            T.e1.Z = 0;
+        }
+        else
+        {
+            T.e1.X = -a.Y/mag;
+            T.e1.Y = a.X/mag;
+            T.e1.Z = 0;
+        }
+    }
+    T.e2 = a * T.e1;
+    T.e2.normalize();
+
+    return T;
 }
 
 double compute_vertex_area(int ind, const Mesh& mesh) {

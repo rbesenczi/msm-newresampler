@@ -159,6 +159,29 @@ vector<std::map<int,double>> Resampler::get_barycentric_weights(const Mesh& low,
 
     return weights;
 }
+Mesh project_mesh(const Mesh& orig, const Mesh& target, const Mesh& anat) {
+
+    Resampler resampler(Method::BARY);
+    Mesh TRANS = orig;
+    Octree octreeSearch(orig);
+
+    std::vector<std::map<int,double>> weights = resampler.get_barycentric_weights(orig, target, octreeSearch);
+
+    #pragma omp parallel for
+    for (int i = 0; i < orig.nvertices(); i++)
+    {
+        Point new_coord;
+        for (const auto& iter : weights[i])
+        {
+            if(anat.nvertices() == target.nvertices())
+                new_coord += anat.get_coord(iter.first) * iter.second;
+            else
+                new_coord += target.get_coord(iter.first) * iter.second;
+        }
+        TRANS.set_coord(i, new_coord);
+    }
+    return TRANS;
+}
 
 Mesh surface_resample(const Mesh& anatOrig, const Mesh& sphOrig, const Mesh& sphLow) {
 //---ANATOMICAL MESH RESAMPLING---//
