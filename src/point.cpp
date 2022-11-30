@@ -82,7 +82,7 @@ double computeArea(const Point &v0, const Point &v1, const Point &v2) {
     return 0.5 * res.norm();
 }
 
-NEWMAT::Matrix form_matrix_from_points(Point p1, Point p2, Point p3, bool trans) {
+NEWMAT::Matrix form_matrix_from_points(const Point& p1, const Point& p2, const Point& p3, bool trans) {
 
     NEWMAT::Matrix T(3,3);
 

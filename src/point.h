@@ -48,7 +48,7 @@ struct Tangs { Point e1, e2; };
 bool SameSide(const Point &, const Point &, const Point &, const Point &);
 bool PointInTriangle(const Point &, const Point &, const Point &, const Point &);
 Point projectPoint(const Point &, const Point &, const Point &, const Point &, Point &);
-void projectPoint(const Point& vb, const Tangs& T, double e1coord, double e2coord);
+void projectPoint(const Point& vb, const Tangs& T, double& e1coord, double& e2coord);
 double computeArea(const Point &, const Point &, const Point &);
 NEWMAT::Matrix form_matrix_from_points(const Point& p1, const Point& p2, const Point& p3, bool trans);
 
