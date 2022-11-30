@@ -102,6 +102,58 @@ NEWMAT::Matrix form_matrix_from_points(const Point& p1, const Point& p2, const P
         return T;
 }
 
+NEWMAT::Matrix estimate_rotation_matrix(const Point& p1, const Point& p2) {
+    // ci is start point index is end point
+    NEWMAT::Matrix I(3,3),u(3,3),R(3,3);
+    Point ci = p1;
+    Point index = p2;
+    ci.normalize();
+    index.normalize();
+    double theta = acos(ci | index);
+    const double PI = 3.14159265359, EPSILON = 1.0E-8;
+
+    if (theta > PI)
+        throw MeshException("rotation angle is greater than 90 degrees");
+
+    I << 1 << 0 << 0
+      << 0 << 1 << 0
+      << 0 << 0 << 1;
+
+    //calculate axis of rotation from cross product between centre point and neighbour - could also use barycentres
+    Point cross = ci * index;
+    cross.normalize();
+
+    if (fabs(1 - (ci | index)) < EPSILON)
+        R = I;
+    else if (cross.norm() == 0)
+    {
+        R << -1 << 0 << 0
+          << 0 << -1 << 0
+          << 0 << 0 << -1;
+    }
+    else
+    {
+        u << 0 << -cross.Z << cross.Y
+          << cross.Z << 0 << -cross.X
+          << -cross.Y << cross.X << 0;
+
+        // now use rodriguez formula to rotate all data points that contribute the similarity of this control point
+        if (fabs(-1 - (ci | index)) < EPSILON) { // numerical problems at theta cose to PI
+            NEWMAT::Matrix outerprod(3, 3);
+
+            outerprod << cross.X * cross.X << cross.X * cross.Y << cross.X * cross.Z
+                      << cross.Y * cross.X << cross.Y * cross.Y << cross.Y * cross.Z
+                      << cross.Z * cross.X << cross.Z * cross.Y << cross.Z * cross.Z;
+
+            R = 2 * outerprod - I;
+        }
+        else
+            R = I + u * sin(theta) + (1 - cos(theta)) * (u * u);
+    }
+
+    return R;
+}
+
 double operator|(const Point &v1, const Point &v2) {
     return v1.X * v2.X + v1.Y * v2.Y + v1.Z * v2.Z;
 }

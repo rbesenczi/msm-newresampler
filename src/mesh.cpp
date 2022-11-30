@@ -1708,6 +1708,47 @@ Tangs calculate_tangs(int ind, const Mesh& SPH_in) {
     return T;
 }
 
+NEWMAT::ReturnMatrix rotate_euler(const NEWMAT::ColumnVector& vector, double w1, double w2, double w3) {
+
+    NEWMAT::Matrix rotation(3, 3);
+    rotation
+        << cos(w2) * cos(w3)
+        << -cos(w1) * sin(w3) + sin(w1) * sin(w2) * cos(w3)
+        << sin(w1) * sin(w3) + cos(w1) * sin(w2) * cos(w3)
+        << cos(w2) * sin(w3)
+        << cos(w1) * cos(w3) + sin(w1) * sin(w2) * sin(w3)
+        << -sin(w1) * cos(w3) + cos(w1) * sin(w2) * sin(w3)
+        << -sin(w2)
+        << sin(w1) * cos(w2) << cos(w1) * cos(w2);
+
+    NEWMAT::ColumnVector vector_rot = rotation.t() * vector;
+
+    vector_rot.Release();
+    return vector_rot;
+}
+
+Mesh create_exclusion(const Mesh& IN, const NEWMAT::Matrix& DATA, float thrl, float thru) {
+
+    NEWMAT::Matrix cfweighting(1, IN.npvalues());
+    cfweighting = 1;
+    Mesh EXCL = IN;
+    const double EPSILON = 1.0E-8;
+
+    for (int i = 1; i <= IN.npvalues(); i++)
+    {
+        int flag = 0;
+        for (int j = 1; j <= DATA.Nrows(); j++)
+            if (DATA(j, i) >= thrl - EPSILON && DATA(j, i) <= thru + EPSILON) // only exclude if cfweighting for all feat dimensions is zero
+                flag = 1;
+            else
+                flag = 0;
+        if(flag == 1) cfweighting(1,i) = 0;
+    }
+
+    EXCL.set_pvalues(cfweighting);
+    return EXCL;
+}
+
 double compute_vertex_area(int ind, const Mesh& mesh) {
 
     double sum = 0;

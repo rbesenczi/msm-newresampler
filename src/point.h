@@ -51,7 +51,7 @@ Point projectPoint(const Point &, const Point &, const Point &, const Point &, P
 void projectPoint(const Point& vb, const Tangs& T, double& e1coord, double& e2coord);
 double computeArea(const Point &, const Point &, const Point &);
 NEWMAT::Matrix form_matrix_from_points(const Point& p1, const Point& p2, const Point& p3, bool trans);
-
+NEWMAT::Matrix estimate_rotation_matrix(const Point& p1, const Point& p2);
 //---Point operators---//
 double operator|(const Point &p1, const Point &p2); // dot product
 Point operator*(const Point &p1, const Point &p2); // cross product

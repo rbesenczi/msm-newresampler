@@ -62,6 +62,7 @@ public:
     int nvertices() const { return (int)points.size(); }
     int ntriangles() const { return (int)triangles.size(); }
     float get_pvalue(int i, int dim = 0) const;
+    int npvalues (int dim = 0) const { return (int) pvalues[dim].size(); }
     const Point& get_coord(int n) const;
     const Mpoint& get_point(int n) const { return *points[n]; }
     const std::vector<Triangle>& get_all_triangles() const { return triangles; }
@@ -162,6 +163,8 @@ void recentre(Mesh& sphere);
 NEWMAT::ColumnVector calculate_strains(int index, const std::vector<int>& kept, const Mesh& orig, const Mesh& final, const std::shared_ptr<NEWMAT::Matrix>& PrincipalStretches);
 Mesh calculate_strains(double fit_radius, const Mesh& orig, const Mesh& final, const std::shared_ptr<NEWMAT::Matrix>& PrincipalStretches);
 Tangs calculate_tangs(int ind, const Mesh& SPH_in);
+NEWMAT::ReturnMatrix rotate_euler(const NEWMAT::ColumnVector& vector, double w1, double w2, double w3);
+Mesh create_exclusion(const Mesh& IN, const NEWMAT::Matrix& DATA, float thrl, float thru);
 
 double compute_vertex_area(int, const Mesh &); // averages adjoining face areas for each vertex
 NEWMAT::ReturnMatrix rotate_vec(const NEWMAT::ColumnVector& vec, double w1, double w2, double w3);
