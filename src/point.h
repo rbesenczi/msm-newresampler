@@ -50,8 +50,10 @@ bool PointInTriangle(const Point &, const Point &, const Point &, const Point &)
 Point projectPoint(const Point &, const Point &, const Point &, const Point &, Point &);
 void projectPoint(const Point& vb, const Tangs& T, double& e1coord, double& e2coord);
 double computeArea(const Point &, const Point &, const Point &);
-NEWMAT::Matrix form_matrix_from_points(const Point& p1, const Point& p2, const Point& p3, bool trans);
+NEWMAT::Matrix form_matrix_from_points(const Point& p1, const Point& p2, const Point& p3, bool trans = false);
 NEWMAT::Matrix estimate_rotation_matrix(const Point& p1, const Point& p2);
+NEWMAT::ReturnMatrix euler_rotate(const NEWMAT::ColumnVector& vector, double w1, double w2, double w3);
+
 //---Point operators---//
 double operator|(const Point &p1, const Point &p2); // dot product
 Point operator*(const Point &p1, const Point &p2); // cross product

@@ -28,6 +28,9 @@ SOFTWARE.
 #include "miscmaths/miscmaths.h"
 #include "newmesh/giftiInterface.h"
 
+#include "miscmaths/bfmatrix.h"
+#include "miscmaths/histogram.h"
+
 #include "triangle.h"
 
 namespace newresampler {
@@ -62,6 +65,7 @@ public:
     int nvertices() const { return (int)points.size(); }
     int ntriangles() const { return (int)triangles.size(); }
     float get_pvalue(int i, int dim = 0) const;
+    int get_dimension() const { return (int)pvalues.size(); }
     int npvalues (int dim = 0) const { return (int) pvalues[dim].size(); }
     const Point& get_coord(int n) const;
     const Mpoint& get_point(int n) const { return *points[n]; }
@@ -91,6 +95,12 @@ public:
         if (normals.size() < points.size())
             throw MeshException("get_normal: normals have not been calculated, apply estimate_normals() first");
         return normals[n];
+    }
+
+    Point get_triangle_normal(int n) const {
+        if (n >= (int) triangles.size() || (int) triangles.size() == 0)
+            throw MeshException("get_triangle: index exceeds face dimensions");
+        return triangles[n].normal();
     }
 
     Point local_normal(int pt) const;
@@ -160,14 +170,26 @@ void retessellate(Mesh&, std::vector<std::vector<int>>&);
 void check_scale(Mesh& in, const Mesh& ref);
 void true_rescale(Mesh& m, double rad);
 void recentre(Mesh& sphere);
+Mesh create_exclusion(const Mesh& IN, const NEWMAT::Matrix& DATA, float thrl, float thru);
+double compute_vertex_area(int, const Mesh &); // averages adjoining face areas for each vertex
+
+//will move the following functions to NewMeshReg
+bool check_for_intersections(int ind, double eps, Mesh& IN);
+Point spatialgradient(int index, const Mesh& SOURCE);
+void unfold(Mesh& SOURCE);
+NEWMAT::Matrix get_coordinate_transformation(double dNdT1,double dNdT2, NEWMAT::ColumnVector& Norm);
 NEWMAT::ColumnVector calculate_strains(int index, const std::vector<int>& kept, const Mesh& orig, const Mesh& final, const std::shared_ptr<NEWMAT::Matrix>& PrincipalStretches);
 Mesh calculate_strains(double fit_radius, const Mesh& orig, const Mesh& final, const std::shared_ptr<NEWMAT::Matrix>& PrincipalStretches);
+Mesh calculate_triangular_strains(const Mesh& ORIG, const Mesh& FINAL, double MU, double KAPPA);
+double calculate_triangular_strain(int index, const Mesh& ORIG, const Mesh& FINAL, double mu, double kappa, const std::shared_ptr<NEWMAT::ColumnVector>& indexSTRAINS, double k_exp = 2.0);
+double calculate_triangular_strain(const Triangle& ORIG_tr, const Triangle& FINAL_tr, double mu, double kappa, const std::shared_ptr<NEWMAT::ColumnVector>& indexSTRAINS, double k_exp = 2.0);
+double triangle_strain(const NEWMAT::Matrix& AA, const NEWMAT::Matrix & BB, double MU, double KAPPA, const std::shared_ptr<NEWMAT::ColumnVector>& strains, double k_exp);
 Tangs calculate_tangs(int ind, const Mesh& SPH_in);
-NEWMAT::ReturnMatrix rotate_euler(const NEWMAT::ColumnVector& vector, double w1, double w2, double w3);
-Mesh create_exclusion(const Mesh& IN, const NEWMAT::Matrix& DATA, float thrl, float thru);
-
-double compute_vertex_area(int, const Mesh &); // averages adjoining face areas for each vertex
-NEWMAT::ReturnMatrix rotate_vec(const NEWMAT::ColumnVector& vec, double w1, double w2, double w3);
+Tangs calculate_tri(int ind, const Mesh& SPH_in);
+Tangs calculate_tri(const Point& a);
+void get_range(int dim, const MISCMATHS::BFMatrix& M, const NEWMAT::ColumnVector& excluded, double& min, double& max);
+void set_range(int dim, MISCMATHS::BFMatrix& M, const NEWMAT::ColumnVector& excluded, double& min, double& max);
+void multivariate_histogram_normalization(MISCMATHS::BFMatrix& IN, MISCMATHS::BFMatrix& REF, const std::shared_ptr<Mesh>& EXCL_IN, const std::shared_ptr<Mesh>& EXCL_REF, bool rescale);
 
 //---Mesh operators---//
 bool operator==(const Mesh &M1, const Mesh &M2);

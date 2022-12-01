@@ -159,8 +159,9 @@ vector<std::map<int,double>> Resampler::get_barycentric_weights(const Mesh& low,
 
     return weights;
 }
-Mesh project_mesh(const Mesh& orig, const Mesh& target, const Mesh& anat) {
 
+Mesh project_mesh(const Mesh& orig, const Mesh& target, const Mesh& anat) {
+    //TODO need to check the order of parameters, since it is not compatible with the other functions below.
     Resampler resampler(Method::BARY);
     Mesh TRANS = orig;
     Octree octreeSearch(orig);

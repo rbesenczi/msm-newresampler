@@ -154,6 +154,25 @@ NEWMAT::Matrix estimate_rotation_matrix(const Point& p1, const Point& p2) {
     return R;
 }
 
+NEWMAT::ReturnMatrix euler_rotate(const NEWMAT::ColumnVector& vector, double w1, double w2, double w3) {
+
+    NEWMAT::Matrix rotation(3, 3);
+    rotation
+            << cos(w2) * cos(w3)
+            << -cos(w1) * sin(w3) + sin(w1) * sin(w2) * cos(w3)
+            << sin(w1) * sin(w3) + cos(w1) * sin(w2) * cos(w3)
+            << cos(w2) * sin(w3)
+            << cos(w1) * cos(w3) + sin(w1) * sin(w2) * sin(w3)
+            << -sin(w1) * cos(w3) + cos(w1) * sin(w2) * sin(w3)
+            << -sin(w2)
+            << sin(w1) * cos(w2) << cos(w1) * cos(w2);
+
+    NEWMAT::ColumnVector vector_rot = rotation.t() * vector;
+
+    vector_rot.Release();
+    return vector_rot;
+}
+
 double operator|(const Point &v1, const Point &v2) {
     return v1.X * v2.X + v1.Y * v2.Y + v1.Z * v2.Z;
 }

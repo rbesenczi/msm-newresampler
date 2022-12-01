@@ -65,6 +65,8 @@ public:
 };
 
 std::map<int,double> calc_barycentric_weights(const Point&, const Point&, const Point&, const Point&, int, int, int);
+
+//will move the following functions to NewMeshReg
 void computeNormal2EdgeOfTriangle(const Point& v0, const Point& v1, const Point& v2, Point& norm2edge);
 Point computeGradientOfBarycentricTriangle(const Point& v0, const Point& v1, const Point& v2);
 

@@ -21,6 +21,8 @@ SOFTWARE.
 */
 #include "mesh.h"
 
+#include <memory>
+
 using namespace std;
 
 namespace newresampler {
@@ -192,47 +194,62 @@ vector<int> Mesh::getTrianglesAsVector() const {
 
 void Mesh::set_pvalue(unsigned int i, float val, int dim) {
 
-    if (pvalues.empty()) {
+    if (pvalues.empty())
+    {
         cout << "Mesh::set_pvalue, warning, pvalues have not been initialised. Generating pvalues field of length=number of vertices" << endl;
         initialize_pvalues(dim + 1, true);
-    } else if ((int) pvalues.size() < dim + 1) {
+    }
+    else if ((int) pvalues.size() < dim + 1)
+    {
         cout << "Mesh::set_pvalue, warning, index exceeds known pvalues dimension. Appending pvalues" << endl;
         initialize_pvalues(dim - pvalues.size() + 1, true);
     }
-    if (i >= pvalues[dim].size()) {
+    if (i >= pvalues[dim].size())
+    {
         cout << i << " dim " << dim << " " << pvalues[dim].size() << endl;
         throw MeshException("Mesh::set_pvalue, index is incompatible with data dimensions");
     }
 
-        pvalues[dim][i] = val;
-} // this will be problematic is i is > the size of the vector
+    pvalues[dim][i] = val;
+}
 
 void Mesh::set_pvalues(const NEWMAT::Matrix &M, bool appendFieldData) {
+
     bool verticesAreColumns = false;
 
-    if (!points.empty()) { // check that if points have been supplied, that the data has the same length
+    if (!points.empty())
+    { // check that if points have been supplied, that the data has the same length
         if (M.Ncols() == (int) points.size()) verticesAreColumns = true;
         else if (M.Nrows() == (int) points.size()) verticesAreColumns = false;
         else throw MeshException(" Cannot assign data to mesh. Dimensions do not match that of mesh");
-    } else if (!pvalues.empty()) {
+    }
+    else if (!pvalues.empty())
+    {
         if (M.Ncols() == (int) pvalues[0].size()) verticesAreColumns = true;
         else if (M.Nrows() == (int) pvalues[0].size()) verticesAreColumns = false;
         else throw MeshException(" Cannot assign data to mesh. Dimensions do not match that of mesh");
-    } else if (M.Ncols() > M.Nrows()) verticesAreColumns = true;
+    }
+    else if (M.Ncols() > M.Nrows())
+        verticesAreColumns = true;
 
     if (!appendFieldData)
         pvalues.clear();
 
-    if (verticesAreColumns) {
-        for (int i = 1; i <= M.Nrows(); i++) {
+    if (verticesAreColumns)
+    {
+        for (int i = 1; i <= M.Nrows(); i++)
+        {
             vector<float> tmp_pvalues;
             for (int j = 1; j <= M.Ncols(); j++)
                 tmp_pvalues.push_back(M(i, j));
 
             pvalues.push_back(tmp_pvalues);
         }
-    } else {
-        for (int i = 1; i <= M.Ncols(); i++) {
+    }
+    else
+    {
+        for (int i = 1; i <= M.Ncols(); i++)
+        {
             vector<float> tmp_pvalues;
             for (int j = 1; j <= M.Nrows(); j++)
                 tmp_pvalues.push_back(M(j, i));
@@ -1318,12 +1335,44 @@ void recentre(Mesh& sphere) {
     }
 }
 
+Mesh create_exclusion(const Mesh& IN, const NEWMAT::Matrix& DATA, float thrl, float thru) {
+
+    NEWMAT::Matrix cfweighting(1, IN.npvalues());
+    cfweighting = 1;
+    Mesh EXCL = IN;
+    const double EPSILON = 1.0E-8;
+
+    for (int i = 1; i <= IN.npvalues(); i++)
+    {
+        int flag = 0;
+        for (int j = 1; j <= DATA.Nrows(); j++)
+            if (DATA(j, i) >= thrl - EPSILON && DATA(j, i) <= thru + EPSILON) // only exclude if cfweighting for all feat dimensions is zero
+                flag = 1;
+            else
+                flag = 0;
+        if(flag == 1) cfweighting(1,i) = 0;
+    }
+
+    EXCL.set_pvalues(cfweighting);
+    return EXCL;
+}
+
+double compute_vertex_area(int ind, const Mesh& mesh) {
+
+    double sum = 0;
+
+    for (auto i = mesh.tIDbegin(ind); i != mesh.tIDend(ind); i++)
+        sum += mesh.get_triangle_area(*i);
+
+    return sum / mesh.get_total_triangles(ind);
+}
+
 bool check_for_intersections(int ind, double eps, Mesh& IN) {
 
     Point c = IN.get_coord(ind);
     Point V = c;
     V.normalize();
-    int a = 0;
+    bool a = false;
 
     const Triangle& tr = IN.get_triangle_from_vertex(ind, 0);
     c = IN.get_coord(ind);
@@ -1334,16 +1383,16 @@ bool check_for_intersections(int ind, double eps, Mesh& IN) {
         const Triangle& tr2 = IN.get_triangle(*j);
         Point N2 = tr2.normal();
 
-        a = a || ((N|N2) <= 0.5);
+        a = a || ((N | N2) <= 0.5);
 
-        if (a == 1) break;
+        if (a) break;
     }
 
     return a;
 }
 
 Point spatialgradient(int index, const Mesh& SOURCE) {
-// spatial gradient for vertex trianglular mesh
+// spatial gradient for vertex triangular mesh
     Point grad, ci = SOURCE.get_coord(index);
 
     for (auto j = SOURCE.tIDbegin(index); j != SOURCE.tIDend(index); j++)
@@ -1645,6 +1694,228 @@ Mesh calculate_strains(double fit_radius, const Mesh& orig, const Mesh &final, c
     return strain;
 }
 
+Mesh calculate_triangular_strains(const Mesh& ORIG, const Mesh& FINAL, double MU, double KAPPA) {
+
+    Mesh STRAIN = FINAL;
+    NEWMAT::Matrix STRAINS(3,ORIG.ntriangles());
+
+    // get normals
+    for (int index = 0; index < ORIG.ntriangles(); index++)
+    {
+        std::shared_ptr<NEWMAT::ColumnVector> strainstmp = std::make_shared<NEWMAT::ColumnVector>(2);
+        STRAINS(3,index + 1) = calculate_triangular_strain(index, ORIG, FINAL, MU, KAPPA, strainstmp);
+        STRAINS(1,index+1) = (*strainstmp)(1);
+        STRAINS(2,index+1) = (*strainstmp)(2);
+    }
+
+    for (int index = 0; index < ORIG.nvertices(); index++)
+        for (int j = 0; j < 3; j++)
+        {
+            double SUM = 0.0;
+            for (auto i = ORIG.tIDbegin(index); i != ORIG.tIDend(index); i++)
+                SUM += STRAINS(j + 1, *i + 1);
+
+            SUM /= ORIG.get_total_triangles(index);
+            STRAIN.set_pvalue(index, SUM, j);
+        }
+
+    return STRAIN;
+}
+
+double calculate_triangular_strain(int index, const Mesh& ORIG, const Mesh& FINAL, double mu, double kappa,
+                                   const std::shared_ptr<NEWMAT::ColumnVector>& indexSTRAINS, double k_exp) {
+
+    NEWMAT::Matrix ORIG3D(3,3), FINAL3D(3,3),
+                   ORIG2D(3,3), FINAL2D(3,3),
+                   TRANS, TRANS2;
+    Point Normal_O = ORIG.get_triangle_normal(index),
+          Normal_F = FINAL.get_triangle_normal(index);
+
+    Tangs T = calculate_tri(index,ORIG);
+    Tangs T_trans = calculate_tri(index,FINAL);
+    double W = 0.0;
+    NEWMAT::Matrix TMP;
+    NEWMAT::DiagonalMatrix D, D2;
+
+    TRANS = form_matrix_from_points(T.e1, T.e2, Normal_O);
+    if(TRANS.Determinant() < 0)
+    {
+        TMP = TRANS;
+        TMP(1,1) = TRANS(1,2); TMP(2,1) = TRANS(2,2); TMP(3,1) = TRANS(3,2);
+        TMP(1,2) = TRANS(1,1); TMP(2,2) = TRANS(2,1); TMP(3,2) = TRANS(3,1);
+        TRANS = TMP;
+    }
+
+    TRANS2 = form_matrix_from_points(T_trans.e1,T_trans.e2,Normal_F);
+    if(TRANS.Determinant() < 0)
+    {
+        TMP = TRANS2;
+        TMP(1,1) = TRANS2(1,2); TMP(2,1) = TRANS2(2,2); TMP(3,1) = TRANS2(3,2);
+        TMP(1,2) = TRANS2(1,1); TMP(2,2) = TRANS2(2,1); TMP(3,2) = TRANS2(3,1);
+        TRANS2 = TMP;
+    }
+
+    for(int i = 0; i < 3; i++)
+    {
+        Point vertex = ORIG.get_triangle_vertex(index, i);
+        ORIG3D(i+1,1) = vertex.X; ORIG3D(i+1,2) = vertex.Y; ORIG3D(i+1,3) = vertex.Z;
+
+        vertex = FINAL.get_triangle_vertex(index, i);
+        FINAL3D(i+1,1) = vertex.X;	FINAL3D(i+1,2) = vertex.Y;	FINAL3D(i+1,3) = vertex.Z;
+    }
+
+    ORIG2D = ORIG3D * TRANS;
+    FINAL2D = FINAL3D * TRANS2;
+
+    W = triangle_strain(ORIG2D, FINAL2D, mu, kappa, indexSTRAINS, k_exp);
+
+    return W;
+}
+
+double calculate_triangular_strain(const Triangle& ORIG_tr, const Triangle& FINAL_tr, double mu, double kappa,
+                                   const std::shared_ptr<NEWMAT::ColumnVector>& indexSTRAINS, double k_exp) {
+
+    Point Normal_O = ORIG_tr.normal(), Normal_F = FINAL_tr.normal();
+    NEWMAT::Matrix ORIG3D(3,3), FINAL3D(3,3),
+                   ORIG2D(3,3), FINAL2D(3,3),
+                   TRANS, TRANS2;
+
+    Tangs T = calculate_tri(Normal_O);
+    Tangs T_trans = calculate_tri(Normal_F);
+    double W;
+    NEWMAT::Matrix TMP;
+    NEWMAT::DiagonalMatrix D, D2;
+
+    TRANS = form_matrix_from_points(T.e1,T.e2,Normal_O);
+    if(TRANS.Determinant() < 0)
+    {
+        TMP = TRANS;
+        TMP(1,1)=TRANS(1,2); TMP(2,1)=TRANS(2,2); TMP(3,1)=TRANS(3,2);
+        TMP(1,2)=TRANS(1,1); TMP(2,2)=TRANS(2,1); TMP(3,2)=TRANS(3,1);
+        TRANS = TMP;
+    }
+    TRANS2 = form_matrix_from_points(T_trans.e1,T_trans.e2,Normal_F);
+    if(TRANS.Determinant() < 0)
+    {
+        TMP = TRANS2;
+        TMP(1,1)=TRANS2(1,2); TMP(2,1)=TRANS2(2,2); TMP(3,1)=TRANS2(3,2);
+        TMP(1,2)=TRANS2(1,1); TMP(2,2)=TRANS2(2,1); TMP(3,2)=TRANS2(3,1);
+        TRANS2=TMP;
+    }
+
+    for(int i=0;i<3;i++){
+        Point vertex = ORIG_tr.get_vertex_coord(i);
+        ORIG3D(i+1,1) = vertex.X; ORIG3D(i+1,2) = vertex.Y; ORIG3D(i+1,3) = vertex.Z;
+
+        vertex = FINAL_tr.get_vertex_coord(i);
+        FINAL3D(i+1,1) = vertex.X;	FINAL3D(i+1,2) = vertex.Y;	FINAL3D(i+1,3) = vertex.Z;
+    }
+
+    ORIG2D = ORIG3D * TRANS;
+    FINAL2D = FINAL3D * TRANS2;
+
+    W = triangle_strain(ORIG2D, FINAL2D, mu, kappa, indexSTRAINS, k_exp);
+
+    return W;
+}
+
+double triangle_strain(const NEWMAT::Matrix& AA, const NEWMAT::Matrix & BB, double MU, double KAPPA, const std::shared_ptr<NEWMAT::ColumnVector>& strains, double k_exp) {
+
+    double c0,c1,c2,c3,c4,c5,c0c,c1c,c2c,c3c,c4c,c5c,I1,I3,J,W;
+    NEWMAT::Matrix Edges(2,2), edges(2,2);
+    NEWMAT::Matrix F, F3D(3,3), F3D_2;
+
+    F3D(3,1) = 0; F3D(3,2) = 0; F3D(3,3) = 1;
+
+    // all t0 distances
+    c0=AA(2,1)-AA(1,1); //x2-x1 t0
+    c1=AA(2,2)-AA(1,2); //y2-y1
+    c2=AA(3,1)-AA(2,1); //x3-x2
+    c3=AA(3,2)-AA(2,2); // y3-y2
+    c4=AA(3,1)-AA(1,1); // x3-x1
+    c5=AA(3,2)-AA(1,2); // y3-y1
+
+    //all tf distances
+    c0c=BB(2,1)-BB(1,1); //x2-x1 tf
+    c1c=BB(2,2)-BB(1,2); // y2-y1
+    c2c=BB(3,1)-BB(2,1); // x3-x2
+    c3c=BB(3,2)-BB(2,2); // y3-y2
+    c4c=BB(3,1)-BB(1,1);  // x3-x1
+    c5c=BB(3,2)-BB(1,2); // y3-y1
+
+    Edges(1,1)=c0; Edges(1,2)=c4; Edges(2,1)=c1; Edges(2,2)=c5;
+    edges(1,1)=c0c; edges(1,2)=c4c; edges(2,1)=c1c; edges(2,2)=c5c;
+
+    F = edges * Edges.i();
+
+    F3D(1,1)=F(1,1); F3D(1,2)=F(1,2); F3D(1,3)=0;
+    F3D(2,1)=F(2,1); F3D(2,2)=F(2,2); F3D(2,3)=0;
+
+    F3D_2 = F3D.t() * F3D;
+    I1 = F3D_2.Trace();
+    I3 = F3D_2.Determinant();
+
+    J = sqrt(I3);
+    double I1st_new = (I1 - 1.0) / J;
+    double R;
+    if (I1st_new <= 2)
+        R = 1.0;
+    else
+        R = 0.5 * (I1st_new + sqrt(I1st_new * I1st_new - 4));//convert I1* to (major strain) / (minor strain)
+
+    double Rshared = pow(R, k_exp), Jshared = pow(J, k_exp);//could use different exponents, but would be quite strange
+    W = 0.5 * (MU * (Rshared + 1.0 / Rshared - 2) + KAPPA * (Jshared + 1.0 / Jshared - 2));
+
+    // calculating prinicipal strains (for testing)
+    if(strains)
+    {
+        double a11,a21,a31,a12,a22,a32,a13,a23,a33;
+        double A, A11,A21,A31,A12,A22,A32,A13,A23,A33;
+        double B1,B2,B3;
+        double e11,e22,e12,X,Y;
+        //2*dx^2, then 2*dy^2, then 2*dx*dy
+        a11=2.*c0*c0 ;
+        a21=2.*c2*c2 ;
+        a31=2.*c4*c4;
+        a12=2.*c1*c1 ;
+        a22=2.*c3*c3 ;
+        a32=2.*c5*c5;
+        a13=4.*c0*c1 ;
+        a23=4.*c2*c3;
+        a33=4.*c4*c5;
+
+        A=a11*a22*a33+a12*a23*a31+a13*a21*a32-a13*a22*a31-a23*a32*a11-a33*a21*a12;
+
+        A11=(a22*a33-a32*a23)/A;
+        A12=(a13*a32-a12*a33)/A;
+        A13=(a12*a23-a13*a22)/A;
+        A21=(a23*a31-a21*a33)/A;
+        A22=(a11*a33-a13*a31)/A;
+        A23=(a13*a21-a11*a23)/A;
+        A31=(a21*a32-a22*a31)/A;
+        A32=(a12*a31-a11*a32)/A;
+        A33=(a11*a22-a12*a21)/A;
+
+        // deformed distances between points
+        B1=c0c*c0c+c1c*c1c-c0*c0-c1*c1;
+        B2=c2c*c2c+c3c*c3c-c2*c2-c3*c3;
+        B3=c4c*c4c+c5c*c5c-c4*c4-c5*c5;
+
+        // strains wrt x,y coords
+        e11=B1*A11+B2*A12+B3*A13;
+        e22=B1*A21+B2*A22+B3*A23;
+        e12=B1*A31+B2*A32+B3*A33;
+
+        X=e11+e22 ;
+        Y=e11-e22;
+
+        (*strains)(1)=X/2+sqrt((Y/2)*(Y/2)+(e12)*(e12)) ;
+        (*strains)(2)=X/2-sqrt((Y/2)*(Y/2)+(e12)*(e12));
+    }
+
+    return W;
+}
+
 Tangs calculate_tangs(int ind, const Mesh& SPH_in) {
 
     Tangs T;
@@ -1708,78 +1979,219 @@ Tangs calculate_tangs(int ind, const Mesh& SPH_in) {
     return T;
 }
 
-NEWMAT::ReturnMatrix rotate_euler(const NEWMAT::ColumnVector& vector, double w1, double w2, double w3) {
+Tangs calculate_tri(const Point& a) {
 
-    NEWMAT::Matrix rotation(3, 3);
-    rotation
-        << cos(w2) * cos(w3)
-        << -cos(w1) * sin(w3) + sin(w1) * sin(w2) * cos(w3)
-        << sin(w1) * sin(w3) + cos(w1) * sin(w2) * cos(w3)
-        << cos(w2) * sin(w3)
-        << cos(w1) * cos(w3) + sin(w1) * sin(w2) * sin(w3)
-        << -sin(w1) * cos(w3) + cos(w1) * sin(w2) * sin(w3)
-        << -sin(w2)
-        << sin(w1) * cos(w2) << cos(w1) * cos(w2);
+    Tangs T;
+    Point b(1.0f,0.0f,0.0f);
+    Point c = a * b;
 
-    NEWMAT::ColumnVector vector_rot = rotation.t() * vector;
+    double len = c.X * c.X + c.Y * c.Y + c.Z * c.Z;
 
-    vector_rot.Release();
-    return vector_rot;
-}
-
-Mesh create_exclusion(const Mesh& IN, const NEWMAT::Matrix& DATA, float thrl, float thru) {
-
-    NEWMAT::Matrix cfweighting(1, IN.npvalues());
-    cfweighting = 1;
-    Mesh EXCL = IN;
-    const double EPSILON = 1.0E-8;
-
-    for (int i = 1; i <= IN.npvalues(); i++)
+    if (len == 0.0)
     {
-        int flag = 0;
-        for (int j = 1; j <= DATA.Nrows(); j++)
-            if (DATA(j, i) >= thrl - EPSILON && DATA(j, i) <= thru + EPSILON) // only exclude if cfweighting for all feat dimensions is zero
-                flag = 1;
-            else
-                flag = 0;
-        if(flag == 1) cfweighting(1,i) = 0;
+        /* the vector b was parallel to a */
+        b.X = 0.0f;
+        b.Y = 1.0f;
+        b.Z = 0.0f;
+        c = a * b;
+        len = c.X * c.X + c.Y * c.Y + c.Z * c.Z;
     }
 
-    EXCL.set_pvalues(cfweighting);
-    return EXCL;
+    /* normalize */
+    len = std::sqrt(len);
+
+    if (len == 0.0)
+    {
+        cout<<"Tangs Tangent:: first tangent vector of length zero at vertex: "<<endl;
+        len = 1 ;
+    }
+
+    T.e1.X = c.X / len ;
+    T.e1.Y = c.Y / len ;
+    T.e1.Z = c.Z / len ;
+
+    b = a * c;
+    /* normalize */
+    len = std::sqrt(b.X * b.X + b.Y * b.Y + b.Z * b.Z);
+
+    if (len == 0)
+    {
+        cout<<"Tangs Tangent::second tangent vector of length zero at vertex: "<<endl;
+        len = 1 ;
+    }
+
+    T.e2.X = b.X / len ;
+    T.e2.Y = b.Y / len ;
+    T.e2.Z = b.Z / len ;
+
+    return T;
 }
 
-double compute_vertex_area(int ind, const Mesh& mesh) {
+Tangs calculate_tri(int ind, const Mesh& SPH_in) {
 
-    double sum = 0;
+    Tangs T;
+    Point a = SPH_in.get_triangle_normal(ind);
+    Point b(1.0f,0.0f,0.0f);
+    Point c = a*b;
 
-    for (auto i = mesh.tIDbegin(ind); i != mesh.tIDend(ind); i++)
-        sum += mesh.get_triangle_area(*i);
+    double len = c.X * c.X + c.Y * c.Y + c.Z * c.Z;
 
-    return sum / mesh.get_total_triangles(ind);
+    if (len == 0.0)
+    {
+        /* the vector b was parallel to a */
+        b.X = 0.0f;
+        b.Y = 1.0f;
+        b.Z = 0.0f;
+        c = a * b;
+        len = c.X * c.X + c.Y * c.Y + c.Z * c.Z;
+    }
+
+    /* normalize */
+    len = std::sqrt(len);
+
+    if (len == 0.0)
+    {
+        cout<<"Tangs Tangent:: first tangent vector of length zero at vertex: "<<ind<<endl;
+        len = 1;
+    }
+
+    T.e1.X = c.X / len ;
+    T.e1.Y = c.Y / len ;
+    T.e1.Z = c.Z / len ;
+
+    b = a * c;
+
+    /* normalize */
+    len = std::sqrt(b.X * b.X + b.Y * b.Y + b.Z * b.Z);
+
+    if (len == 0)
+    {
+        cout<<"Tangs Tangent::second tangent vector of length zero at vertex: "<<ind<<endl;
+        len = 1;
+    }
+
+    T.e2.X = b.X / len ;
+    T.e2.Y = b.Y / len ;
+    T.e2.Z = b.Z / len ;
+
+    return T;
 }
 
-NEWMAT::ReturnMatrix rotate_vec(const NEWMAT::ColumnVector& vec, double w1, double w2, double w3) {
+void multivariate_histogram_normalization(MISCMATHS::BFMatrix& IN,
+                                          MISCMATHS::BFMatrix& REF,
+                                          const std::shared_ptr<Mesh>& EXCL_IN,
+                                          const std::shared_ptr<Mesh>& EXCL_REF,
+                                          bool rescale) {
 
-    NEWMAT::Matrix rotation(3, 3);
-    NEWMAT::ColumnVector rotated_vec(3);
+    NEWMAT::ColumnVector CDF_in, CDF_ref;
+    NEWMAT::ColumnVector datain(IN.Ncols()), dataref(REF.Ncols());
+    double max, min;
+    NEWMAT::ColumnVector excluded_in(IN.Ncols()); excluded_in = 1;
+    NEWMAT::ColumnVector excluded_ref(REF.Ncols()); excluded_ref = 1;
+    int numbins = 256;
 
-    rotation << cos(w2) * cos(w3)
-        << -cos(w1) * sin(w3) + sin(w1) * sin(w2) * cos(w3)
-        << sin(w1) * sin(w3) + cos(w1) * sin(w2) * cos(w3)
-        << cos(w2) * sin(w3)
-        << cos(w1) * cos(w3) + sin(w1) * sin(w2) * sin(w3)
-        << -sin(w1) * cos(w3) + cos(w1) * sin(w2)*sin(w3)
-        << -sin(w2)
-        << sin(w1) * cos(w2)
-        << cos(w1) * cos(w2);
+    for(int d = 1; d <= (int) IN.Nrows(); d++)
+    {
+        for (unsigned int i = 1; i <= IN.Ncols(); i++)
+        {
+            datain(i) = IN.Peek(d,i);
 
-    rotation = rotation.t();
+            if(EXCL_IN)
+            { // if using an exclusion mask these values will be eliminated from the histogram matching
+                if(EXCL_IN->get_dimension() >= d)
+                    excluded_in(i) = EXCL_IN->get_pvalue(i-1,d-1);
+                else
+                    excluded_in(i) = EXCL_IN->get_pvalue(i-1);
+            }
+        }
 
-    rotated_vec = rotation * vec;
-    rotated_vec.Release();
+        for (unsigned int i = 1; i <= REF.Ncols(); i++)
+        {
+            dataref(i) = REF.Peek(d,i);
 
-    return rotated_vec;
+            if(EXCL_REF)
+            {
+                if(EXCL_REF->get_dimension() >= d)
+                    excluded_ref(i) = EXCL_REF->get_pvalue(i-1,d-1);
+                else
+                    excluded_ref(i) = EXCL_REF->get_pvalue(i-1);
+            }
+        }
+
+        MISCMATHS::Histogram Hist_in(datain,numbins),
+                             Hist_ref(dataref,numbins);
+        Hist_in.generate(excluded_in);
+        Hist_in.setexclusion(excluded_in);
+
+        Hist_ref.generate(excluded_ref);
+        Hist_ref.setexclusion(excluded_ref);
+
+        Hist_in.generateCDF();
+        Hist_ref.generateCDF();
+
+        Hist_in.match(Hist_ref);
+
+        datain =Hist_in.getsourceData();
+
+        CDF_in = Hist_in.getCDF();
+
+        for (unsigned int i = 1; i <= IN.Ncols(); i++)
+            IN.Set(d, i, datain(i));
+
+        if(rescale)
+        {
+            if(d>1)
+            {
+                set_range(d,IN,excluded_in,max,min);
+                set_range(d,REF,excluded_ref,max,min);
+            }
+            else
+            {
+                get_range(d,IN,excluded_in,max,min);
+            }
+        }
+    }
+}
+
+void get_range(int dim, const MISCMATHS::BFMatrix& M, const NEWMAT::ColumnVector& excluded, double& min, double& max) {
+
+    max = std::numeric_limits<double>::lowest();
+    min = std::numeric_limits<double>::max();
+
+    for (unsigned int i = 1; i <= M.Ncols(); i++)
+    {
+        if (M.Peek(dim, i) > max && excluded(i) != 0)
+            max = M.Peek(dim, i);
+        if (M.Peek(dim, i) < min && excluded(i) != 0)
+            min = M.Peek(dim, i);
+    }
+}
+
+void set_range(int dim, MISCMATHS::BFMatrix& M, const NEWMAT::ColumnVector& excluded, double& min, double& max) {
+
+    double nmin = std::numeric_limits<double>::max(),
+           nmax = std::numeric_limits<double>::lowest(),
+           range = max - min;
+    double nval, val;
+
+    for (unsigned int i = 1; i <= M.Ncols(); i++)
+    {
+        if (M.Peek(dim, i) > nmax && excluded(i) != 0)
+            nmax = M.Peek(dim, i);
+        if (M.Peek(dim, i) < nmin && excluded(i) != 0)
+            nmin = M.Peek(dim, i);
+    }
+
+    double nrange = nmax - nmin;
+
+    for (unsigned int i = 1; i <= M.Ncols(); i++)
+        if (excluded(i) != 0)
+        {
+            nval = (M.Peek(dim, i) - nmin) / nrange;
+            val = nmin + nval * range;
+            M.Set(dim, i, val);
+        }
+
 }
 
 bool operator==(const Mesh& M1, const Mesh& M2) {
