@@ -44,6 +44,7 @@ public:
     ~Octree() { delete octree_root; octree_root = nullptr; }
 
     Triangle get_closest_triangle(const Point& pt) const;
+    int get_closest_vertex_ID(const Point& pt) const;
 
     //disable copy and move for now
     Octree(const Octree&) = delete;

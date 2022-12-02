@@ -184,4 +184,24 @@ Triangle Octree::get_closest_triangle(const Point &pt) const {
     return closest_triangle;
 }
 
+int Octree::get_closest_vertex_ID(const Point &pt) const {
+
+    Triangle closest_triangle = get_closest_triangle(pt);
+
+    double dist = std::numeric_limits<double>::max();
+    int closest_vertex_ID = 0;
+
+    for(int v = 0; v < 3; ++v)
+    {
+        double current_dist = (pt - closest_triangle.get_vertex_coord(v)).norm();
+        if(current_dist < dist)
+        {
+            closest_vertex_ID = closest_triangle.get_vertex_no(v);
+            dist = current_dist;
+        }
+    }
+
+    return closest_vertex_ID;
+}
+
 } //namespace newresampler

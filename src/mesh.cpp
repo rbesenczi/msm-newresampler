@@ -982,6 +982,24 @@ Point Mesh::estimate_origin() const {
     return c;
 }
 
+NEWMAT::Matrix Mesh::get_pvalues() const {
+
+    NEWMAT::Matrix M(0,0);
+
+    if(!pvalues.empty())
+    {
+        M.ReSize(pvalues.size(), pvalues[0].size());
+        for(unsigned int dim = 0; dim < pvalues.size(); dim++)
+        {
+            if (pvalues[dim].size() != pvalues[0].size())
+                throw MeshException("get_pvalues: inconsistent dimensions");
+            for (unsigned int i = 0; i < pvalues[dim].size(); i++)
+                M(dim + 1, i + 1) = pvalues[dim][i];
+        }
+    }
+    return M;
+}
+
 void retessellate(Mesh &mesh) {
 
     std::vector<std::shared_ptr<Mpoint>> added_points;

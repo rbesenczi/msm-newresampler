@@ -160,6 +160,106 @@ vector<std::map<int,double>> Resampler::get_barycentric_weights(const Mesh& low,
     return weights;
 }
 
+MISCMATHS::FullBFMatrix smooth_data(Mesh& in, const Mesh& SPH, double sigma, const std::shared_ptr<MISCMATHS::BFMatrix>& data, std::shared_ptr<Mesh> EXCL) {
+    //TODO need to check the order of parameters, since it is not compatible with the other functions below.
+    check_scale(in, SPH);
+
+    NEWMAT::Matrix newdata(data->Nrows(), SPH.nvertices()); newdata = 0;
+    Mesh exclusion = SPH;
+    const double RAD = 100.0;
+    const double ang = 4 * asin(sigma / (2 * RAD));
+
+    Octree oct_search(in);
+
+    #pragma omp parallel for
+    for (int i = 0; i < SPH.nvertices(); i++)
+    {
+        exclusion.set_pvalue(i,0);
+        Point ci = SPH.get_coord(i);
+
+        double SUM = 0.0, excl_sum = 0.0;
+
+        int closest_vertex = oct_search.get_closest_vertex_ID(ci);
+        Point ref = SPH.get_coord(closest_vertex);
+        ref.normalize();
+
+        std::vector<std::pair<double, int>> neighbourhood;
+
+        for(int n = 0; n < SPH.nvertices(); n++)
+        {   //This is not optimal in any way, squared runtime!!
+            Point actual = SPH.get_coord(n);
+            actual.normalize();
+            if ((actual | ref) >= cos(ang))
+            {
+                std::pair<double, int> tmp = {(ref - actual).norm(), n};
+                neighbourhood.push_back(tmp);   //can't parallelise this, thread local only
+            }
+        }
+
+        if(!EXCL || (EXCL->get_pvalue(closest_vertex) > 0))
+        {
+            for (const auto& neighbour : neighbourhood)
+            {
+                double geodesic_dist = 2 * RAD * asin(neighbour.first / (2 * RAD));
+                double weight = (1 / sqrt(2 * M_PI * sigma * sigma)) * exp(-(geodesic_dist * geodesic_dist) / (2 * sigma * sigma));
+                excl_sum += weight;
+
+                if(EXCL)
+                    weight = EXCL->get_pvalue(neighbour.second) * weight;
+
+                SUM += weight;
+
+                newdata(1, i + 1) += data->Peek(1, neighbour.second + 1) * weight;
+            }
+
+            if(excl_sum != 0.0 && EXCL)
+                exclusion.set_pvalue(i, SUM / excl_sum);
+
+            for (int it = 1; it <= newdata.Nrows(); it++)
+                if(SUM != 0.0) newdata(it,i + 1) = newdata(it,i + 1) / SUM;
+        }
+
+        else
+            exclusion.set_pvalue(i, 0);
+    }
+
+    if(EXCL) *EXCL = exclusion;
+
+    MISCMATHS::FullBFMatrix smoothed(newdata);
+    return smoothed;
+}
+
+void nearest_neighbour_interpolation(Mesh& in, const Mesh& SPH, std::shared_ptr<MISCMATHS::BFMatrix>& data, std::shared_ptr<Mesh>& EXCL) {
+    //TODO need to check the order of parameters, since it is not compatible with the other functions below.
+    //TODO needs testing
+    NEWMAT::Matrix newdata(data->Nrows(),SPH.nvertices()); newdata = 0;
+    Mesh exclusion = SPH;
+
+    check_scale(in,SPH);
+
+    Octree oct_search(in);
+
+    #pragma omp parallel for
+    for (int i = 0; i < SPH.nvertices(); i++)
+    {
+        exclusion.set_pvalue(i, 0);
+        int closest_vertex = oct_search.get_closest_vertex_ID(SPH.get_coord(i));
+
+        if(!EXCL || EXCL->get_pvalue(closest_vertex) != 0)
+        {
+            if(EXCL) exclusion.set_pvalue(i, EXCL->get_pvalue(closest_vertex));
+            for(MISCMATHS::BFMatrixColumnIterator it = data->begin(closest_vertex); it != data->end(closest_vertex); ++it)
+                newdata(it.Row(), i) = *it;
+        }
+    }
+
+    if(EXCL) *EXCL = exclusion;
+
+    std::shared_ptr<MISCMATHS::FullBFMatrix> pin = std::dynamic_pointer_cast<MISCMATHS::FullBFMatrix>(data);
+    if(pin) data = std::shared_ptr<MISCMATHS::BFMatrix>(new MISCMATHS::FullBFMatrix (newdata));
+    else data = std::shared_ptr<MISCMATHS::BFMatrix>(new MISCMATHS::SparseBFMatrix<double>(newdata));
+}
+
 Mesh project_mesh(const Mesh& orig, const Mesh& target, const Mesh& anat) {
     //TODO need to check the order of parameters, since it is not compatible with the other functions below.
     Resampler resampler(Method::BARY);

@@ -72,6 +72,7 @@ public:
     const std::vector<Triangle>& get_all_triangles() const { return triangles; }
     int get_total_triangles(int i) const;
     double get_triangle_area(int tID) const { return triangles[tID].get_area(); }
+    NEWMAT::Matrix get_pvalues() const;
 
     const Triangle& get_triangle(int n) const {
         if (n >= (int) triangles.size() || triangles.empty())
