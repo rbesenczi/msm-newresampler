@@ -1,9 +1,9 @@
 include ${FSLCONFDIR}/default.mk
 
 PROJNAME = newresampler-demo
-XFILES   = metric-resample surface-resample 
-LIBS     = -lfsl-newresampler -lboost_program_options
-USRCXXFLAGS += -Wall
+XFILES   = metric-resample surface-resample smoothing
+LIBS     = -lfsl-newresampler -lboost_program_options -lfsl-miscmaths
+USRCXXFLAGS += -Wall -fopenmp
 
 all: ${XFILES}
 
