@@ -60,7 +60,7 @@ Mesh project_mesh(const Mesh& orig, const Mesh& target, const Mesh& anat);
 Mesh surface_resample(const Mesh&, const Mesh&, const Mesh&);
 Mesh metric_resample(const Mesh&, const Mesh&);
 MISCMATHS::FullBFMatrix smooth_data(Mesh& in, const Mesh& SPH, double sigma, const std::shared_ptr<MISCMATHS::BFMatrix>& data, std::shared_ptr<Mesh> EXCL = std::shared_ptr<Mesh>());
-void nearest_neighbour_interpolation(Mesh& in, const Mesh& SPH, std::shared_ptr<MISCMATHS::BFMatrix>& data, std::shared_ptr<Mesh>& EXCL);
+MISCMATHS::FullBFMatrix nearest_neighbour_interpolation(Mesh& in, const Mesh& SPH, std::shared_ptr<MISCMATHS::BFMatrix>& data, std::shared_ptr<Mesh> EXCL = std::shared_ptr<Mesh>());
 
 } //namespace newresampler
 

@@ -229,13 +229,12 @@ MISCMATHS::FullBFMatrix smooth_data(Mesh& in, const Mesh& SPH, double sigma, con
     return smoothed;
 }
 
-void nearest_neighbour_interpolation(Mesh& in, const Mesh& SPH, std::shared_ptr<MISCMATHS::BFMatrix>& data, std::shared_ptr<Mesh>& EXCL) {
+MISCMATHS::FullBFMatrix nearest_neighbour_interpolation(Mesh& in, const Mesh& SPH, std::shared_ptr<MISCMATHS::BFMatrix>& data, std::shared_ptr<Mesh> EXCL) {
     //TODO need to check the order of parameters, since it is not compatible with the other functions below.
-    //TODO needs testing
+    check_scale(in,SPH);
+
     NEWMAT::Matrix newdata(data->Nrows(),SPH.nvertices()); newdata = 0;
     Mesh exclusion = SPH;
-
-    check_scale(in,SPH);
 
     Octree oct_search(in);
 
@@ -248,16 +247,14 @@ void nearest_neighbour_interpolation(Mesh& in, const Mesh& SPH, std::shared_ptr<
         if(!EXCL || EXCL->get_pvalue(closest_vertex) != 0)
         {
             if(EXCL) exclusion.set_pvalue(i, EXCL->get_pvalue(closest_vertex));
-            for(MISCMATHS::BFMatrixColumnIterator it = data->begin(closest_vertex); it != data->end(closest_vertex); ++it)
-                newdata(it.Row(), i) = *it;
+            newdata(1, i + 1) = data->Peek(1, closest_vertex + 1);
         }
     }
 
     if(EXCL) *EXCL = exclusion;
 
-    std::shared_ptr<MISCMATHS::FullBFMatrix> pin = std::dynamic_pointer_cast<MISCMATHS::FullBFMatrix>(data);
-    if(pin) data = std::shared_ptr<MISCMATHS::BFMatrix>(new MISCMATHS::FullBFMatrix (newdata));
-    else data = std::shared_ptr<MISCMATHS::BFMatrix>(new MISCMATHS::SparseBFMatrix<double>(newdata));
+    MISCMATHS::FullBFMatrix interpolated(newdata);
+    return interpolated;
 }
 
 Mesh project_mesh(const Mesh& orig, const Mesh& target, const Mesh& anat) {
