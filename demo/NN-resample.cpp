@@ -38,16 +38,10 @@ void resample_mesh(const std::string& in_sphere_name, const std::string& data_na
     newresampler::true_rescale(in_sphere,RAD);
     newresampler::true_rescale(ico, RAD);
 
-    std::shared_ptr<MISCMATHS::BFMatrix> data = std::shared_ptr<MISCMATHS::BFMatrix>(new MISCMATHS::FullBFMatrix(in_sphere.get_pvalues()));
+    newresampler::Mesh interpolated = newresampler::nearest_neighbour_interpolation(in_sphere, ico);
 
-    MISCMATHS::FullBFMatrix interpolated = newresampler::nearest_neighbour_interpolation(in_sphere, ico, data);
-
-    #pragma omp parallel for
-    for (int i = 0; i < ico.nvertices(); i++) 
-        ico.set_pvalue(i, interpolated.Peek(1, i + 1));
-    
-    ico.save(output_name + "-resampled_data.func");
-    ico.save(output_name + "-sphere.surf");
+    interpolated.save(output_name + "-resampled_data.func");
+    interpolated.save(output_name + "-sphere.surf");
 }
 
 int main(int argc, char **argv)

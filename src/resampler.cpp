@@ -31,12 +31,6 @@ namespace newresampler {
 
 MISCMATHS::FullBFMatrix Resampler::barycentric_data_interpolation(const Mesh& metric_in, const Mesh& sphLow){
 
-    MISCMATHS::FullBFMatrix data(1, metric_in.nvertices());
-
-    #pragma omp parallel for
-    for (int i = 0; i < metric_in.nvertices(); i++)
-        data.Set(1, i + 1, metric_in.get_pvalue(i));
-
     vector<map<int,double>> weights = get_adaptive_barycentric_weights(metric_in, sphLow);
 
     MISCMATHS::FullBFMatrix interpolated_data (1, sphLow.nvertices());
@@ -47,7 +41,7 @@ MISCMATHS::FullBFMatrix Resampler::barycentric_data_interpolation(const Mesh& me
         double val = 0.0;
 
         for (const auto& it: weights[k])
-                val += data.Peek(1, it.first + 1) * it.second;
+            val += metric_in.get_pvalue(it.first) * it.second;
 
         interpolated_data.Set(1, k + 1, val);
     }
@@ -160,105 +154,98 @@ vector<std::map<int,double>> Resampler::get_barycentric_weights(const Mesh& low,
     return weights;
 }
 
-MISCMATHS::FullBFMatrix smooth_data(Mesh& in, const Mesh& SPH, double sigma, const std::shared_ptr<MISCMATHS::BFMatrix>& data, std::shared_ptr<Mesh> EXCL) {
-    //TODO need to check the order of parameters, since it is not compatible with the other functions below.
-    check_scale(in, SPH);
+Mesh smooth_data(Mesh& orig, const Mesh& sphLow, double sigma, std::shared_ptr<Mesh> EXCL) {
+//---SMOOTHING---//
+    check_scale(orig, sphLow);
 
-    NEWMAT::Matrix newdata(data->Nrows(), SPH.nvertices()); newdata = 0;
-    Mesh exclusion = SPH;
+    NEWMAT::Matrix newdata(1, sphLow.nvertices()); newdata = 0;
+    Mesh exclusion = sphLow, smoothed = sphLow;
     const double RAD = 100.0;
     const double ang = 4 * asin(sigma / (2 * RAD));
 
-    Octree oct_search(in);
+    Octree oct_search(orig);
 
     #pragma omp parallel for
-    for (int i = 0; i < SPH.nvertices(); i++)
+    for (int i = 0; i < sphLow.nvertices(); i++)
     {
         exclusion.set_pvalue(i,0);
-        Point ci = SPH.get_coord(i);
+        Point ci = sphLow.get_coord(i);
+
+        int closest_vertex = oct_search.get_closest_vertex_ID(ci);
+        Point ref = sphLow.get_coord(closest_vertex);
+        ref.normalize();
 
         double SUM = 0.0, excl_sum = 0.0;
 
-        int closest_vertex = oct_search.get_closest_vertex_ID(ci);
-        Point ref = SPH.get_coord(closest_vertex);
-        ref.normalize();
+        std::vector<std::pair<int, double>> neighbourhood;
 
-        std::vector<std::pair<double, int>> neighbourhood;
-
-        for(int n = 0; n < SPH.nvertices(); n++)
-        {   //This is not optimal in any way, squared runtime!!
-            Point actual = SPH.get_coord(n);
+        for(int n = 0; n < sphLow.nvertices(); n++)
+        {
+            Point actual = sphLow.get_coord(n);
             actual.normalize();
             if ((actual | ref) >= cos(ang))
-            {
-                std::pair<double, int> tmp = {(ref - actual).norm(), n};
-                neighbourhood.push_back(tmp);   //can't parallelise this, thread local only
-            }
+                neighbourhood.emplace_back(std::make_pair(n, (ref - actual).norm()));
         }
 
         if(!EXCL || (EXCL->get_pvalue(closest_vertex) > 0))
         {
             for (const auto& neighbour : neighbourhood)
             {
-                double geodesic_dist = 2 * RAD * asin(neighbour.first / (2 * RAD));
+                double geodesic_dist = 2 * RAD * asin(neighbour.second / (2 * RAD));
                 double weight = (1 / sqrt(2 * M_PI * sigma * sigma)) * exp(-(geodesic_dist * geodesic_dist) / (2 * sigma * sigma));
                 excl_sum += weight;
 
-                if(EXCL)
-                    weight = EXCL->get_pvalue(neighbour.second) * weight;
+                if(EXCL) weight = EXCL->get_pvalue(neighbour.first) * weight;
 
                 SUM += weight;
-
-                newdata(1, i + 1) += data->Peek(1, neighbour.second + 1) * weight;
+                newdata(1, i + 1) += orig.get_pvalue(neighbour.first) * weight;
             }
 
-            if(excl_sum != 0.0 && EXCL)
-                exclusion.set_pvalue(i, SUM / excl_sum);
+            if(excl_sum != 0.0 && EXCL) exclusion.set_pvalue(i, SUM / excl_sum);
 
-            for (int it = 1; it <= newdata.Nrows(); it++)
-                if(SUM != 0.0) newdata(it,i + 1) = newdata(it,i + 1) / SUM;
+            if(SUM != 0.0) newdata(1, i + 1) /= SUM;
         }
-
         else
             exclusion.set_pvalue(i, 0);
     }
 
     if(EXCL) *EXCL = exclusion;
 
-    MISCMATHS::FullBFMatrix smoothed(newdata);
+    #pragma omp parallel for
+    for (int i = 0; i < smoothed.nvertices(); i++)
+        smoothed.set_pvalue(i, newdata(1, i + 1));
+
     return smoothed;
 }
 
-MISCMATHS::FullBFMatrix nearest_neighbour_interpolation(Mesh& in, const Mesh& SPH, std::shared_ptr<MISCMATHS::BFMatrix>& data, std::shared_ptr<Mesh> EXCL) {
-    //TODO need to check the order of parameters, since it is not compatible with the other functions below.
-    check_scale(in,SPH);
+Mesh nearest_neighbour_interpolation(Mesh& orig, const Mesh& sphLow, std::shared_ptr<Mesh> EXCL) {
+//---NN INTERPOLATION---//
+    check_scale(orig, sphLow);
 
-    NEWMAT::Matrix newdata(data->Nrows(),SPH.nvertices()); newdata = 0;
-    Mesh exclusion = SPH;
+    Mesh exclusion = sphLow, interpolated = sphLow;
 
-    Octree oct_search(in);
+    Octree oct_search(orig);
 
     #pragma omp parallel for
-    for (int i = 0; i < SPH.nvertices(); i++)
+    for (int i = 0; i < sphLow.nvertices(); i++)
     {
         exclusion.set_pvalue(i, 0);
-        int closest_vertex = oct_search.get_closest_vertex_ID(SPH.get_coord(i));
+        int closest_vertex = oct_search.get_closest_vertex_ID(sphLow.get_coord(i));
 
         if(!EXCL || EXCL->get_pvalue(closest_vertex) != 0)
         {
             if(EXCL) exclusion.set_pvalue(i, EXCL->get_pvalue(closest_vertex));
-            newdata(1, i + 1) = data->Peek(1, closest_vertex + 1);
+            interpolated.set_pvalue(i, orig.get_pvalue(closest_vertex));
         }
     }
 
     if(EXCL) *EXCL = exclusion;
 
-    MISCMATHS::FullBFMatrix interpolated(newdata);
     return interpolated;
 }
 
 Mesh project_mesh(const Mesh& orig, const Mesh& target, const Mesh& anat) {
-    //TODO need to check the order of parameters, since it is not compatible with the other functions below.
+//---ANATOMICAL MESH PROJECTION---//
     Resampler resampler(Method::BARY);
     Mesh TRANS = orig;
     Octree octreeSearch(orig);
@@ -303,7 +290,6 @@ Mesh surface_resample(const Mesh& anatOrig, const Mesh& sphOrig, const Mesh& sph
 
 Mesh metric_resample(const Mesh& metric_in, const Mesh& sphLow) {
 //---METRIC FILE RESAMPLING---//
-
     Resampler resampler(Method::ADAP_BARY);
 
     MISCMATHS::FullBFMatrix interpolated_data = resampler.barycentric_data_interpolation(metric_in, sphLow);

@@ -30,21 +30,15 @@ void smooth(const std::string& in_sphere_name, const std::string& data_name,
         double sigma, const std::string& output_name) {
     //tests data smoothing on the same mesh
 
-    newresampler::Mesh in_sphere;
+    newresampler::Mesh in_sphere, smoothed;
     in_sphere.load(in_sphere_name, true, false);
     in_sphere.load(data_name, false, false);
 
     newresampler::true_rescale(in_sphere, RAD);
 
-    std::shared_ptr<MISCMATHS::BFMatrix> data = std::shared_ptr<MISCMATHS::BFMatrix>(new MISCMATHS::FullBFMatrix(in_sphere.get_pvalues()));
+    smoothed = newresampler::smooth_data(in_sphere, in_sphere, sigma);
 
-    MISCMATHS::FullBFMatrix smoothed = newresampler::smooth_data(in_sphere, in_sphere, sigma, data);
-    
-    #pragma omp parallel for
-    for (int i = 0; i < in_sphere.nvertices(); i++)
-        in_sphere.set_pvalue(i, smoothed.Peek(1, i + 1));
-
-    in_sphere.save(output_name + "-smoothed_data.func");
+    smoothed.save(output_name + "-smoothed_data.func");
 }
 
 int main(int argc, char **argv)
