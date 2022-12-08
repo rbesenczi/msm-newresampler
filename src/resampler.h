@@ -50,15 +50,15 @@ public:
     Method get_method() const { return method; };
 
     //---RESAMPLING AND CALC WEIGHTS, OCTREE-BASED METHODS---//
-    MISCMATHS::FullBFMatrix barycentric_data_interpolation(const Mesh &metric_in, const Mesh &sphLow);
-    std::vector<std::map<int,double>> get_adaptive_barycentric_weights(const Mesh& in_mesh, const Mesh & sphLow);
+    Mesh barycentric_data_interpolation(const Mesh& metric_in, const Mesh& sphLow, std::shared_ptr<Mesh> = std::shared_ptr<Mesh>());
+    std::vector<std::map<int,double>> get_adaptive_barycentric_weights(const Mesh& in_mesh, const Mesh& sphLow, std::shared_ptr<Mesh> = std::shared_ptr<Mesh>());
     std::vector<std::map<int,double>> get_barycentric_weights(const Mesh& low, const Mesh& orig, const Octree& oct);
 };
 //---UTILITY---//
 Mesh project_mesh(const Mesh& orig, const Mesh& target, const Mesh& anat);
 //---ENTRY POINTS FOR RESAMPLER---//
 Mesh surface_resample(const Mesh&, const Mesh&, const Mesh&);
-Mesh metric_resample(const Mesh&, const Mesh&);
+Mesh metric_resample(const Mesh&, const Mesh&, std::shared_ptr<Mesh> = std::shared_ptr<Mesh>()); //TODO, add EXCL
 Mesh smooth_data(Mesh& orig, const Mesh& sphLow, double sigma, std::shared_ptr<Mesh> EXCL = std::shared_ptr<Mesh>());
 Mesh nearest_neighbour_interpolation(Mesh &orig, const Mesh &sphLow, std::shared_ptr<Mesh> EXCL = std::shared_ptr<Mesh>());
 

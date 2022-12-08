@@ -1353,25 +1353,18 @@ void recentre(Mesh& sphere) {
     }
 }
 
-Mesh create_exclusion(const Mesh& IN, const NEWMAT::Matrix& DATA, float thrl, float thru) {
+Mesh create_exclusion(const Mesh& data_mesh, float thrl, float thru) {
 
-    NEWMAT::Matrix cfweighting(1, IN.npvalues());
-    cfweighting = 1;
-    Mesh EXCL = IN;
+    Mesh EXCL = data_mesh;
     const double EPSILON = 1.0E-8;
 
-    for (int i = 1; i <= IN.npvalues(); i++)
-    {
-        int flag = 0;
-        for (int j = 1; j <= DATA.Nrows(); j++)
-            if (DATA(j, i) >= thrl - EPSILON && DATA(j, i) <= thru + EPSILON) // only exclude if cfweighting for all feat dimensions is zero
-                flag = 1;
-            else
-                flag = 0;
-        if(flag == 1) cfweighting(1,i) = 0;
-    }
+    #pragma omp parallel
+    for (int i = 0; i < data_mesh.npvalues(); i++)
+        if (data_mesh.get_pvalue(i) >= (thrl - EPSILON) && data_mesh.get_pvalue(i) <= (thru + EPSILON))
+            EXCL.set_pvalue(i, 0);
+        else
+            EXCL.set_pvalue(i, 1);
 
-    EXCL.set_pvalues(cfweighting);
     return EXCL;
 }
 

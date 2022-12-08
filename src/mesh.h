@@ -171,7 +171,7 @@ void retessellate(Mesh&, std::vector<std::vector<int>>&);
 void check_scale(Mesh& in, const Mesh& ref);
 void true_rescale(Mesh& m, double rad);
 void recentre(Mesh& sphere);
-Mesh create_exclusion(const Mesh& IN, const NEWMAT::Matrix& DATA, float thrl, float thru);
+Mesh create_exclusion(const Mesh& data_mesh, float thrl, float thru);
 double compute_vertex_area(int, const Mesh &); // averages adjoining face areas for each vertex
 
 //will move the following functions to NewMeshReg

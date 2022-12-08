@@ -29,27 +29,38 @@ using namespace std;
 
 namespace newresampler {
 
-MISCMATHS::FullBFMatrix Resampler::barycentric_data_interpolation(const Mesh& metric_in, const Mesh& sphLow){
+Mesh Resampler::barycentric_data_interpolation(const Mesh& metric_in, const Mesh& sphLow,
+                                                                  std::shared_ptr<Mesh> EXCL){
 
-    vector<map<int,double>> weights = get_adaptive_barycentric_weights(metric_in, sphLow);
+    if (EXCL && EXCL->nvertices() != metric_in.nvertices())
+        throw MeshException("Exclusion mask differs in nvertices from data");
 
-    MISCMATHS::FullBFMatrix interpolated_data (1, sphLow.nvertices());
+    Mesh exclusion = sphLow, interpolated_mesh = sphLow;
+    vector<map<int,double>> weights = get_adaptive_barycentric_weights(metric_in, sphLow, EXCL);
 
     #pragma omp parallel for
-    for (int k = 0; k < sphLow.nvertices(); k++)
+    for (int k = 0; k < interpolated_mesh.nvertices(); k++)
     {
-        double val = 0.0;
+        exclusion.set_pvalue(k, 0.0);
+        double val = 0.0, excl_val = 0.0;
 
         for (const auto& it: weights[k])
-            val += metric_in.get_pvalue(it.first) * it.second;
-
-        interpolated_data.Set(1, k + 1, val);
+        {
+            if(!EXCL || EXCL->get_pvalue(it.first) != 0)
+            {
+                val += metric_in.get_pvalue(it.first) * it.second;
+                if(EXCL) excl_val += EXCL->get_pvalue(it.first);
+            }
+        }
+        interpolated_mesh.set_pvalue(k, val);
+        if(EXCL) exclusion.set_pvalue(k, excl_val);
     }
 
-    return interpolated_data;
+    if (EXCL) *EXCL = exclusion;    //"resample" EXCL mask too
+    return interpolated_mesh;
 }
 
-vector<std::map<int,double>> Resampler::get_adaptive_barycentric_weights(const Mesh& in_mesh, const Mesh& sphLow){
+vector<std::map<int,double>> Resampler::get_adaptive_barycentric_weights(const Mesh& in_mesh, const Mesh& sphLow, std::shared_ptr<Mesh> EXCL){
 
     Octree octreeSearch_in(in_mesh);
     vector<map<int,double>> forward = get_barycentric_weights(sphLow, in_mesh, octreeSearch_in);
@@ -71,14 +82,16 @@ vector<std::map<int,double>> Resampler::get_adaptive_barycentric_weights(const M
     for (int oldNode = 0; oldNode < numOldNodes; ++oldNode)
     {
         oldAreas[oldNode] = compute_vertex_area(oldNode, in_mesh);
-        for (auto iter = reverse[oldNode].begin();
-             iter != reverse[oldNode].end(); ++iter)
+        for(auto iter = reverse[oldNode].begin();
+            iter != reverse[oldNode].end(); ++iter)
             reverse_reorder[iter->first][oldNode] = iter->second; //this loop can't be parallelized
     }
 
     #pragma omp parallel for
     for (int newNode = 0; newNode < numNewNodes; ++newNode)
     {
+        if(!EXCL || EXCL->get_pvalue(octreeSearch_in.get_closest_vertex_ID(sphLow.get_coord(newNode))) != 0)
+        {
             newAreas[newNode] = compute_vertex_area(newNode, sphLow);
             if (reverse_reorder[newNode].size() <= forward[newNode].size())
                 // choose whichever has the most samples as this will be the higher res mesh (this differs from source code)
@@ -87,28 +100,31 @@ vector<std::map<int,double>> Resampler::get_adaptive_barycentric_weights(const M
                 adapt_weights[newNode] = reverse_reorder[newNode];
 
             for (auto iter = adapt_weights[newNode].begin();
-                 iter != adapt_weights[newNode].end(); ++iter)
-            {
+                 iter != adapt_weights[newNode].end(); ++iter) {
                 //begin area correction by multiplying by target node calc_area
                 iter->second *= newAreas[newNode];//begin the process of calc_area correction by multiplying by gathering node areas
                 correction[iter->first] += iter->second;//now, sum the scattering weights to prepare for first normalization
             }
+        }
     }
 
     #pragma omp parallel for
     for (int newNode = 0; newNode < numNewNodes; ++newNode)
     {
-        double weight_sum = 0.0;
-        for (auto &iter: adapt_weights[newNode])//begin area correction by multiplying by target node calc_area
+        if(!EXCL || EXCL->get_pvalue(octreeSearch_in.get_closest_vertex_ID(sphLow.get_coord(newNode))) != 0)
         {
-            iter.second *= oldAreas[iter.first] / correction[iter.first];
-            //divide the weights by their scatter sum, then multiply by current areas
-            weight_sum += iter.second;//and compute the sum
+            double weight_sum = 0.0;
+            for (auto &iter: adapt_weights[newNode])//begin area correction by multiplying by target node calc_area
+            {
+                iter.second *= oldAreas[iter.first] / correction[iter.first];
+                //divide the weights by their scatter sum, then multiply by current areas
+                weight_sum += iter.second;//and compute the sum
+            }
+            if (weight_sum != 0.0)
+                //this shouldn't happen unless no nodes remain due to roi, or node areas can be zero
+                for (auto &iter: adapt_weights[newNode])
+                    iter.second /= weight_sum;//and normalize to a sum of 1
         }
-        if (weight_sum != 0.0)
-            //this shouldn't happen unless no nodes remain due to roi, or node areas can be zero
-            for (auto &iter: adapt_weights[newNode])
-                iter.second /= weight_sum;//and normalize to a sum of 1
     }
 
     return adapt_weights;
@@ -288,19 +304,11 @@ Mesh surface_resample(const Mesh& anatOrig, const Mesh& sphOrig, const Mesh& sph
     return anatLow;
 }
 
-Mesh metric_resample(const Mesh& metric_in, const Mesh& sphLow) {
+Mesh metric_resample(const Mesh& metric_in, const Mesh& sphLow, std::shared_ptr<Mesh> EXCL) {
 //---METRIC FILE RESAMPLING---//
     Resampler resampler(Method::ADAP_BARY);
 
-    MISCMATHS::FullBFMatrix interpolated_data = resampler.barycentric_data_interpolation(metric_in, sphLow);
-
-    Mesh output = sphLow;
-
-    #pragma omp parallel for
-    for (int i = 0; i < sphLow.nvertices(); i++)
-        output.set_pvalue(i, interpolated_data.Peek(1, i + 1));
-
-    return output;
+    return resampler.barycentric_data_interpolation(metric_in, sphLow, EXCL);
 }
 
 } //namespace newresampler
