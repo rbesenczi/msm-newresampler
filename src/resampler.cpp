@@ -149,14 +149,24 @@ vector<std::map<int,double>> Resampler::get_barycentric_weights(const Mesh& low,
 
             Triangle closest = oct.get_closest_triangle(ci);
 
-            n0 = closest.get_vertex_no(0);
-            n1 = closest.get_vertex_no(1);
-            n2 = closest.get_vertex_no(2);
-            v0 = closest.get_vertex_coord(0);
-            v1 = closest.get_vertex_coord(1);
-            v2 = closest.get_vertex_coord(2);
+            if (closest.get_no() != 0)
+            {
+                n0 = closest.get_vertex_no(0);
+                n1 = closest.get_vertex_no(1);
+                n2 = closest.get_vertex_no(2);
+                v0 = closest.get_vertex_coord(0);
+                v1 = closest.get_vertex_coord(1);
+                v2 = closest.get_vertex_coord(2);
 
-            thread_private_weights.emplace_back(calc_barycentric_weights(v0, v1, v2, ci, n0, n1, n2));
+                thread_private_weights.emplace_back(calc_barycentric_weights(v0, v1, v2, ci, n0, n1, n2));
+            }
+            else
+            {
+                // in case of ico 4 octree search cannot find the nearest triangle for some points
+                // this will need more debugging
+                std::map<int,double> tmp = {{1,0.33},{1,0.33},{1,0.33}};
+                thread_private_weights.push_back(tmp);
+            }
         }
 
         #pragma omp for schedule(static) ordered
