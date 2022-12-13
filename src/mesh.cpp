@@ -2205,6 +2205,29 @@ void set_range(int dim, MISCMATHS::BFMatrix& M, const NEWMAT::ColumnVector& excl
 
 }
 
+void set_data(const std::string& dataname, std::shared_ptr<MISCMATHS::BFMatrix>& BF, Mesh& M, bool issparse) {
+
+    if(issparse)
+    {
+        MISCMATHS::SpMat<double> sparse_mat(dataname);
+        BF = std::shared_ptr<MISCMATHS::BFMatrix>(new MISCMATHS::SparseBFMatrix<double>(sparse_mat));
+        // may not be desirable to do it this way if dimensions are v high
+    }
+    else
+    {
+        M.load(dataname,false,false);
+        BF = std::shared_ptr<MISCMATHS::BFMatrix>(new MISCMATHS::FullBFMatrix(M.get_pvalues()));
+    }
+
+    if((int)BF->Ncols() != M.npvalues())
+    {
+        if((int)BF->Nrows() != M.npvalues())
+            throw MeshException("data does not match mesh dimensions");
+        else
+            BF = BF->Transpose();
+    }
+}
+
 bool operator==(const Mesh& M1, const Mesh& M2) {
     if (M1.nvertices() != M2.nvertices()) return false;
     for (int i = 0; i < M1.nvertices(); i++)

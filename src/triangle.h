@@ -53,6 +53,8 @@ public:
 
     //---MANIPULATION---//
     inline void swap_orientation() { std::swap(vertices[1], vertices[2]); }
+    void set(Point p1, Point p2, Point p3, int index);
+    void set_vertex(int i, const Point& p);
 
     //---UTILITY---//
     Triangle copy() const;
@@ -65,6 +67,7 @@ public:
 };
 
 std::map<int,double> calc_barycentric_weights(const Point&, const Point&, const Point&, const Point&, int, int, int);
+double barycentric_weight(const Point& v1, const Point& v2, const Point& v3, const Point& vref, double va1, double va2, double va3);
 
 //will move the following functions to NewMeshReg
 void computeNormal2EdgeOfTriangle(const Point& v0, const Point& v1, const Point& v2, Point& norm2edge);

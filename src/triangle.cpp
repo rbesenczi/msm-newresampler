@@ -67,6 +67,22 @@ double Triangle::calc_area() const {
     return 0.5 * result.norm();
 }
 
+void Triangle::set(Point p1, Point p2, Point p3, int index)
+{
+    std::shared_ptr<Mpoint> m1 = std::make_shared<Mpoint>(p1,0);
+    std::shared_ptr<Mpoint> m2 = std::make_shared<Mpoint>(p2,1);
+    std::shared_ptr<Mpoint> m3 = std::make_shared<Mpoint>(p3,2);
+    vertices.clear(); vertices.push_back(m1); vertices.push_back(m2); vertices.push_back(m3);
+    no = index;
+    area = calc_area();
+}
+
+void Triangle::set_vertex(int i, const Point& p) {
+    std::shared_ptr<Mpoint> m = std::make_shared<Mpoint>(p,0);
+    if(vertices.empty()) vertices.resize(3);
+    vertices[i] = m;
+}
+
 std::vector<double> Triangle::get_angles() const { // get angles in order of vertex: 0,1,2
 
     std::vector<double> face_angles;
@@ -167,6 +183,20 @@ std::map<int,double> calc_barycentric_weights(const Point& v1, const Point& v2,
     weights[n3] = Ac / A;
 
     return weights;
+}
+
+double barycentric_weight(const Point& v1, const Point& v2, const Point& v3, const Point& vref, double va1, double va2, double va3) {
+
+    double Aa = computeArea(vref, v2,v3);
+    double Ab = computeArea(vref, v1,v3);
+    double Ac = computeArea(vref, v1,v2);
+
+    double A = Aa + Ab + Ac;
+    Aa = Aa / A;
+    Ab = Ab / A;
+    Ac =Ac / A;
+
+    return  Aa * va1 + Ab * va2 + Ac * va3;
 }
 
 void computeNormal2EdgeOfTriangle(const Point& v0, const Point& v1, const Point& v2, Point& norm2edge) {

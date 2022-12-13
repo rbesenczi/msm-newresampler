@@ -104,6 +104,19 @@ public:
         return triangles[n].normal();
     }
 
+    int get_total_neighbours(int i) const {
+        return points.at(i)->nneighbours();
+    }
+
+    std::vector<std::vector<double>> get_face_angles() const {
+
+        std::vector<std::vector<double>> all_angles(triangles.size());
+        for (const auto& triangle : triangles)
+            all_angles.emplace_back(triangle.get_angles());
+
+        return all_angles;
+    }
+
     Point local_normal(int pt) const;
     void estimate_normals();
     std::vector<Point> get_bounding_box() const;
@@ -182,15 +195,16 @@ NEWMAT::Matrix get_coordinate_transformation(double dNdT1,double dNdT2, NEWMAT::
 NEWMAT::ColumnVector calculate_strains(int index, const std::vector<int>& kept, const Mesh& orig, const Mesh& final, const std::shared_ptr<NEWMAT::Matrix>& PrincipalStretches);
 Mesh calculate_strains(double fit_radius, const Mesh& orig, const Mesh& final, const std::shared_ptr<NEWMAT::Matrix>& PrincipalStretches);
 Mesh calculate_triangular_strains(const Mesh& ORIG, const Mesh& FINAL, double MU, double KAPPA);
-double calculate_triangular_strain(int index, const Mesh& ORIG, const Mesh& FINAL, double mu, double kappa, const std::shared_ptr<NEWMAT::ColumnVector>& indexSTRAINS, double k_exp = 2.0);
-double calculate_triangular_strain(const Triangle& ORIG_tr, const Triangle& FINAL_tr, double mu, double kappa, const std::shared_ptr<NEWMAT::ColumnVector>& indexSTRAINS, double k_exp = 2.0);
+double calculate_triangular_strain(int index, const Mesh& ORIG, const Mesh& FINAL, double mu, double kappa, const std::shared_ptr<NEWMAT::ColumnVector>& indexSTRAINS = std::shared_ptr<NEWMAT::ColumnVector>(), double k_exp = 2.0);
+double calculate_triangular_strain(const Triangle& ORIG_tr, const Triangle& FINAL_tr, double mu, double kappa, const std::shared_ptr<NEWMAT::ColumnVector>& indexSTRAINS = std::shared_ptr<NEWMAT::ColumnVector>(), double k_exp = 2.0);
 double triangle_strain(const NEWMAT::Matrix& AA, const NEWMAT::Matrix & BB, double MU, double KAPPA, const std::shared_ptr<NEWMAT::ColumnVector>& strains, double k_exp);
 Tangs calculate_tangs(int ind, const Mesh& SPH_in);
 Tangs calculate_tri(int ind, const Mesh& SPH_in);
 Tangs calculate_tri(const Point& a);
 void get_range(int dim, const MISCMATHS::BFMatrix& M, const NEWMAT::ColumnVector& excluded, double& min, double& max);
 void set_range(int dim, MISCMATHS::BFMatrix& M, const NEWMAT::ColumnVector& excluded, double& min, double& max);
-void multivariate_histogram_normalization(MISCMATHS::BFMatrix& IN, MISCMATHS::BFMatrix& REF, const std::shared_ptr<Mesh>& EXCL_IN, const std::shared_ptr<Mesh>& EXCL_REF, bool rescale);
+void multivariate_histogram_normalization(MISCMATHS::BFMatrix& IN, MISCMATHS::BFMatrix& REF, const std::shared_ptr<Mesh>& EXCL_IN, const std::shared_ptr<Mesh>& EXCL_REF, bool rescale = false);
+void set_data(const std::string& dataname, std::shared_ptr<MISCMATHS::BFMatrix>& BF, Mesh& M, bool issparse = false);
 
 //---Mesh operators---//
 bool operator==(const Mesh &M1, const Mesh &M2);
