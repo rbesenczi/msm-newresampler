@@ -321,4 +321,23 @@ Mesh metric_resample(const Mesh& metric_in, const Mesh& sphLow, std::shared_ptr<
     return resampler.barycentric_data_interpolation(metric_in, sphLow, EXCL);
 }
 
+void barycentric_mesh_interpolation(Mesh& SPH_up, const Mesh& SPH_low_init, const Mesh& SPH_low_final) {
+
+    Resampler R;
+    Octree octree_search(SPH_low_init);
+    std::vector<std::map<int,double>> weights = R.get_barycentric_weights(SPH_up, SPH_low_init, octree_search);
+
+    #pragma omp parallel for
+    for(int i = 0; i < SPH_up.nvertices(); i++)
+    {
+        Point newPt;
+        for(const auto& it : weights[i])
+            newPt += SPH_low_final.get_coord(it.first) * it.second;
+
+        newPt.normalize();
+        newPt *= 100;
+        SPH_up.set_coord(i, newPt);
+    }
+}
+
 } //namespace newresampler

@@ -61,6 +61,7 @@ Mesh surface_resample(const Mesh&, const Mesh&, const Mesh&);
 Mesh metric_resample(const Mesh&, const Mesh&, std::shared_ptr<Mesh> = std::shared_ptr<Mesh>()); //TODO, add EXCL
 Mesh smooth_data(Mesh& orig, const Mesh& sphLow, double sigma, std::shared_ptr<Mesh> EXCL = std::shared_ptr<Mesh>());
 Mesh nearest_neighbour_interpolation(Mesh &orig, const Mesh &sphLow, std::shared_ptr<Mesh> EXCL = std::shared_ptr<Mesh>());
+void barycentric_mesh_interpolation(Mesh& SPH_up, const Mesh& SPH_low_init, const Mesh& SPH_low_final);
 
 } //namespace newresampler
 
