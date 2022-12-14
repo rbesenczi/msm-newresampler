@@ -31,8 +31,12 @@ namespace newresampler {
 Octree::Octree(const Mesh& target) {
 
     std::vector<Point> bounding_box = target.get_bounding_box();
-    double lower_bounds[3] = {std::floor(bounding_box[0].X), std::floor(bounding_box[0].Y), std::floor(bounding_box[0].Z) };
-    double upper_bounds[3] = {std::ceil(bounding_box[1].X), std::ceil(bounding_box[1].Y), std::ceil(bounding_box[1].Z) };
+    //double lower_bounds[3] = {std::floor(bounding_box[0].X), std::floor(bounding_box[0].Y), std::floor(bounding_box[0].Z) };
+    //double upper_bounds[3] = {std::ceil(bounding_box[1].X), std::ceil(bounding_box[1].Y), std::ceil(bounding_box[1].Z) };
+
+    const int RAD = 101;
+    double lower_bounds[3] = {-RAD,-RAD,-RAD };
+    double upper_bounds[3] = {RAD, RAD, RAD };
 
     octree_root = new Node(lower_bounds, upper_bounds);
 
