@@ -639,6 +639,7 @@ void Mesh::save(const string &filename) const {
             save_vtk(filename);
             break;
         case Mesh::FileType::DEFAULT:
+        case Mesh::FileType::GIFTI:
             save_gifti(filename);
             break;
         default:
