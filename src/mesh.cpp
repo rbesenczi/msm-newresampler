@@ -288,7 +288,9 @@ double Mesh::Calculate_MVD() const {
 
     // mean_inter_vertex_distance
     // calculate from first vertex only so not true unless regularised!
-    double k = 0.0, kr = 0.0;
+    int k = 0;
+    double kr = 0.0;
+
     for (int i = 0; i < nvertices(); i++)
     {
         Point Sp = get_coord(i);
