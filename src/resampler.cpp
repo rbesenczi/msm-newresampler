@@ -56,7 +56,7 @@ Mesh Resampler::barycentric_data_interpolation(const Mesh& metric_in, const Mesh
         if(EXCL) exclusion.set_pvalue(k, excl_val);
     }
 
-    if (EXCL) *EXCL = exclusion;    //"resample" EXCL mask too
+    if (EXCL) *EXCL = exclusion;
     return interpolated_mesh;
 }
 
@@ -133,48 +133,25 @@ vector<std::map<int,double>> Resampler::get_adaptive_barycentric_weights(const M
 vector<std::map<int,double>> Resampler::get_barycentric_weights(const Mesh& low, const Mesh& orig, const Octree& oct){
 
     std::vector<std::map<int,double>> weights;
-    weights.reserve(low.nvertices());
+    weights.resize(low.nvertices());
 
-    #pragma omp parallel
+    #pragma omp parallel for
+    for (int k = 0; k < low.nvertices(); k++)
     {
-        std::vector<std::map<int, double>> thread_private_weights;
+        Point v0, v1, v2;
+        int n0, n1, n2;
 
-        #pragma omp for nowait schedule(static)
-        for (int k = 0; k < low.nvertices(); k++)
-        {
-            Point v0, v1, v2;
-            int n0, n1, n2;
+        Point ci = low.get_coord(k);
+        Triangle closest = oct.get_closest_triangle(ci);
 
-            Point ci = low.get_coord(k);
+        n0 = closest.get_vertex_no(0);
+        n1 = closest.get_vertex_no(1);
+        n2 = closest.get_vertex_no(2);
+        v0 = closest.get_vertex_coord(0);
+        v1 = closest.get_vertex_coord(1);
+        v2 = closest.get_vertex_coord(2);
 
-            Triangle closest = oct.get_closest_triangle(ci);
-
-            if (closest.get_no() != 0)
-            {
-                n0 = closest.get_vertex_no(0);
-                n1 = closest.get_vertex_no(1);
-                n2 = closest.get_vertex_no(2);
-                v0 = closest.get_vertex_coord(0);
-                v1 = closest.get_vertex_coord(1);
-                v2 = closest.get_vertex_coord(2);
-
-                thread_private_weights.emplace_back(calc_barycentric_weights(v0, v1, v2, ci, n0, n1, n2));
-            }
-            else
-            {
-                // in case of ico 4 octree search cannot find the nearest triangle for some points
-                // this will need more debugging
-                std::map<int,double> tmp = {{1,0.33},{1,0.33},{1,0.33}};
-                thread_private_weights.push_back(tmp);
-            }
-        }
-
-        #pragma omp for schedule(static) ordered
-        for (int i = 0; i < omp_get_num_threads(); i++)
-        {
-            #pragma omp ordered
-            weights.insert(weights.end(), thread_private_weights.begin(), thread_private_weights.end());
-        }
+        weights[k] = calc_barycentric_weights(v0, v1, v2, ci, n0, n1, n2);
     }
 
     return weights;
@@ -324,8 +301,8 @@ Mesh metric_resample(const Mesh& metric_in, const Mesh& sphLow, std::shared_ptr<
 void barycentric_mesh_interpolation(Mesh& SPH_up, const Mesh& SPH_low_init, const Mesh& SPH_low_final) {
 
     Resampler R;
-    Octree octree_search(SPH_low_final);
-    std::vector<std::map<int,double>> weights = R.get_barycentric_weights(SPH_up, SPH_low_final, octree_search);
+    Octree octree_search(SPH_low_init);
+    std::vector<std::map<int,double>> weights = R.get_barycentric_weights(SPH_up, SPH_low_init, octree_search);
 
     #pragma omp parallel for
     for(int i = 0; i < SPH_up.nvertices(); i++)

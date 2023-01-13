@@ -31,11 +31,11 @@ namespace newresampler {
 class Triangle {
 
     std::vector<std::shared_ptr<Mpoint>> vertices;
-    int no{};
-    double area{};
+    int no = -1;
+    double area = 0.0;
 
 public:
-    Triangle() = default;
+    Triangle(){};
 
     Triangle(Point p1, Point p2, Point p3, int no);
     Triangle(const std::shared_ptr<Mpoint>& p1,
