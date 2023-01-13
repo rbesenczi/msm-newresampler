@@ -87,7 +87,7 @@ try {
         std::cout << "ico was set to "
                   << vm["ico"].as<int>() << ".\n";
 #endif
-        if (vm["ico"].as<int>() > 6 || vm["ico"].as<int>() < 3)
+        if (vm["ico"].as<int>() > 6 || vm["ico"].as<int>() < 2)
         {
             std::cout << desc << '\n';
             throw std::runtime_error("Invalid ico dimension");

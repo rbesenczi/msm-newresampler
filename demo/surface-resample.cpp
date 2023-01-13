@@ -39,6 +39,7 @@ void resample_mesh(const std::string& in_anat_name, const std::string& in_sphere
     newresampler::Mesh resampled = newresampler::surface_resample(in_anat, in_sphere, ico);
 
     resampled.save(output_name + "-anat.surf");
+    ico.save(output_name + "-sphere.surf.gii");
 }
 
 int main(int argc, char **argv)
