@@ -108,6 +108,7 @@ void Node::make_children() {
                     temp->bounds[i][2] = bounds[i][child_oct[i] + 1];
                     temp->bounds[i][1] = (temp->bounds[i][0] + temp->bounds[i][2]) / 2.0;
                 }
+                temp->parent = this;
                 children[child_oct[0]][child_oct[1]][child_oct[2]] = temp;
             }
 }
