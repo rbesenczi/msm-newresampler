@@ -1106,7 +1106,7 @@ void retessellate(Mesh& mesh, std::vector<std::vector<int>>& old_tr_nbours) {
     std::vector<Triangle> tr = mesh.get_all_triangles();
 
     old_tr_nbours.clear();
-    old_tr_nbours.reserve(tr.size());
+    old_tr_nbours.resize(tr.size());
 
     int count = 0;
     int tot_triangles = 0;
@@ -1181,21 +1181,18 @@ void retessellate(Mesh& mesh, std::vector<std::vector<int>>& old_tr_nbours) {
             added_points.push_back(p2);
         }
 
-        std::vector<int> tr_nbours(4);
         Triangle t0(p2, p0, p1, tot_triangles);
-        tr_nbours.push_back(tot_triangles);
+        old_tr_nbours[t.get_no()].push_back(tot_triangles);
         tot_triangles++;
         Triangle t1(p1, v0, p2, tot_triangles);
-        tr_nbours.push_back(tot_triangles);
+        old_tr_nbours[t.get_no()].push_back(tot_triangles);
         tot_triangles++;
         Triangle t2(p0, v2, p1, tot_triangles);
-        tr_nbours.push_back(tot_triangles);
+        old_tr_nbours[t.get_no()].push_back(tot_triangles);
         tot_triangles++;
         Triangle t3(p2, v1, p0, tot_triangles);
-        tr_nbours.push_back(tot_triangles);
+        old_tr_nbours[t.get_no()].push_back(tot_triangles);
         tot_triangles++;
-
-        old_tr_nbours.push_back(tr_nbours);
 
         mesh.push_triangle(t0);
         mesh.push_triangle(t1);
