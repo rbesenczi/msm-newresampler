@@ -251,7 +251,7 @@ Mesh project_mesh(const Mesh& orig, const Mesh& target, const Mesh& anat) {
 //---ANATOMICAL MESH PROJECTION---//
     Resampler resampler(Method::BARY);
     Mesh TRANS = orig;
-    Octree octreeSearch(orig);
+    Octree octreeSearch(target);
 
     std::vector<std::map<int,double>> weights = resampler.get_barycentric_weights(orig, target, octreeSearch);
 
