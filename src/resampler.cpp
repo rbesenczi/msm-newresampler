@@ -49,7 +49,7 @@ Mesh Resampler::barycentric_data_interpolation(const Mesh& metric_in, const Mesh
             if(!EXCL || EXCL->get_pvalue(it.first) != 0)
             {
                 val += metric_in.get_pvalue(it.first) * it.second;
-                if(EXCL) excl_val += EXCL->get_pvalue(it.first);
+                if(EXCL) excl_val += EXCL->get_pvalue(it.first) * it.second;
             }
         }
         interpolated_mesh.set_pvalue(k, val);
