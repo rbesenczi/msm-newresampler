@@ -202,18 +202,17 @@ Triangle Octree::get_closest_triangle(const Point &pt) const {
                 }
         else
         {
-            current_oct = current_oct->parent;
-            for (auto &i: current_oct->children)
+            for (auto &i: current_oct->parent->children)
                 for (auto &j: i)
                     for (auto close_oct: j)
                         for (int tr = 0; tr < close_oct->triangles_size(); ++tr)
                             for (int v = 0; v < 3; ++v)
                             {
-                                Point CP = current_oct->get_triangle(tr).get_vertex_coord(v);
+                                Point CP = close_oct->get_triangle(tr).get_vertex_coord(v);
                                 double temp_distance = 2 * RAD * asin((CP - pt).norm() / (2 * RAD));
                                 if (temp_distance < best_distance)
                                 {
-                                    closest_triangle = current_oct->get_triangle(tr);
+                                    closest_triangle = close_oct->get_triangle(tr);
                                     best_distance = temp_distance;
                                 }
                             }
