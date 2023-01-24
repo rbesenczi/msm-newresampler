@@ -33,7 +33,7 @@ void Point::normalize() {
     }
 }
 
-bool SameSide(const Point &p1, const Point &p2, const Point &a, const Point &b) {
+bool same_side(const Point &p1, const Point &p2, const Point &a, const Point &b) {
 
     Point cp1 = (b - a) * (p1 - a);
     Point cp2 = (b - a) * (p2 - a);
@@ -41,15 +41,15 @@ bool SameSide(const Point &p1, const Point &p2, const Point &a, const Point &b) 
     if ((cp1 | cp2) >= -1E-6) return true; else return false;
 }
 
-bool PointInTriangle(const Point &p, const Point &a, const Point &b, const Point &c) {
+bool point_in_triangle(const Point &p, const Point &a, const Point &b, const Point &c) {
 
-    if (SameSide(p, a, b, c) && SameSide(p, b, c, a) && SameSide(p, c, a, b))
+    if (same_side(p, a, b, c) && same_side(p, b, c, a) && same_side(p, c, a, b))
         return true;
     else return false;
 }
 
-Point projectPoint(const Point &vb, const Point &v1, const Point &v2,
-                   const Point &v3, Point &PP) {
+Point project_point(const Point &vb, const Point &v1, const Point &v2,
+                    const Point &v3, Point &PP) {
 
     Point s1 = v3 - v1;
     s1.normalize();
@@ -66,12 +66,12 @@ Point projectPoint(const Point &vb, const Point &v1, const Point &v2,
     return s3;
 }
 
-void projectPoint(const Point& vb, const Tangs& T, double& e1coord, double& e2coord) {
+void project_point(const Point& vb, const Tangs& T, double& e1coord, double& e2coord) {
     e1coord = vb | T.e1;
     e2coord = vb | T.e2;
 }
 
-double computeArea(const Point &v0, const Point &v1, const Point &v2) {
+double compute_area(const Point &v0, const Point &v1, const Point &v2) {
 
     Point res, v0v1, v0v2;
 

@@ -19,24 +19,14 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-#ifndef NEWRESAMPLER_MESHEXCEPTION_H
-#define NEWRESAMPLER_MESHEXCEPTION_H
 
-#include <exception>
-#include <iostream>
+#include "meshException.h"
 
 namespace newresampler {
 
-class MeshException : public std::exception {
-
-public:
-    const char *errmesg;
-
-    explicit MeshException(const char *msg): errmesg(msg) {}
-
-    const char *what() const noexcept override;
-};
+const char* MeshException::what() const noexcept {
+    std::cout << errmesg << std::endl;
+    return errmesg;
+}
 
 } //namespace newresampler
-
-#endif //NEWRESAMPLER_MESHEXCEPTION_H

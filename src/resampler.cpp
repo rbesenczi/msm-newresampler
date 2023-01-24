@@ -25,8 +25,6 @@ Original: https://github.com/Washington-University/workbench/blob/master/src/Fil
 */
 #include "resampler.h"
 
-using namespace std;
-
 namespace newresampler {
 
 Mesh Resampler::barycentric_data_interpolation(const Mesh& metric_in, const Mesh& sphLow,
@@ -36,7 +34,7 @@ Mesh Resampler::barycentric_data_interpolation(const Mesh& metric_in, const Mesh
         throw MeshException("Exclusion mask differs in nvertices from data");
 
     Mesh exclusion = sphLow, interpolated_mesh = sphLow;
-    vector<map<int,double>> weights = get_adaptive_barycentric_weights(metric_in, sphLow, EXCL);
+    std::vector<std::map<int,double>> weights = get_adaptive_barycentric_weights(metric_in, sphLow, EXCL);
 
     #pragma omp parallel for
     for (int k = 0; k < interpolated_mesh.nvertices(); k++)
@@ -60,21 +58,21 @@ Mesh Resampler::barycentric_data_interpolation(const Mesh& metric_in, const Mesh
     return interpolated_mesh;
 }
 
-vector<std::map<int,double>> Resampler::get_adaptive_barycentric_weights(const Mesh& in_mesh, const Mesh& sphLow, std::shared_ptr<Mesh> EXCL){
+std::vector<std::map<int,double>> Resampler::get_adaptive_barycentric_weights(const Mesh& in_mesh, const Mesh& sphLow, std::shared_ptr<Mesh> EXCL){
 
     Octree octreeSearch_in(in_mesh);
-    vector<map<int,double>> forward = get_barycentric_weights(sphLow, in_mesh, octreeSearch_in);
+    std::vector<std::map<int,double>> forward = get_barycentric_weights(sphLow, in_mesh, octreeSearch_in);
 
     Octree octreeSearch_ref(sphLow);
-    vector<map<int,double>> reverse = get_barycentric_weights(in_mesh, sphLow, octreeSearch_ref);
+    std::vector<std::map<int,double>> reverse = get_barycentric_weights(in_mesh, sphLow, octreeSearch_ref);
 
-    vector<map<int,double>> reverse_reorder, adapt_weights;
+    std::vector<std::map<int,double>> reverse_reorder, adapt_weights;
 
     int numOldNodes = in_mesh.nvertices();
     int numNewNodes = sphLow.nvertices();
-    vector<double> newAreas(numNewNodes, 0.0);
-    vector<double> oldAreas(numOldNodes, 0.0);
-    vector<double> correction(numOldNodes, 0.0);
+    std::vector<double> newAreas(numNewNodes, 0.0);
+    std::vector<double> oldAreas(numOldNodes, 0.0);
+    std::vector<double> correction(numOldNodes, 0.0);
 
     reverse_reorder.resize(forward.size());
     adapt_weights.resize(forward.size());
@@ -130,7 +128,7 @@ vector<std::map<int,double>> Resampler::get_adaptive_barycentric_weights(const M
     return adapt_weights;
 }
 
-vector<std::map<int,double>> Resampler::get_barycentric_weights(const Mesh& low, const Mesh& orig, const Octree& oct){
+std::vector<std::map<int,double>> Resampler::get_barycentric_weights(const Mesh& low, const Mesh& orig, const Octree& oct){
 
     std::vector<std::map<int,double>> weights;
     weights.resize(low.nvertices());
@@ -277,7 +275,7 @@ Mesh surface_resample(const Mesh& anatOrig, const Mesh& sphOrig, const Mesh& sph
     Mesh anatLow = sphLow;
     Octree octreeSearch(sphOrig);
 
-    std::vector<map<int,double>> weights = resampler.get_barycentric_weights(sphLow, sphOrig, octreeSearch);
+    std::vector<std::map<int,double>> weights = resampler.get_barycentric_weights(sphLow, sphOrig, octreeSearch);
 
     #pragma omp parallel for
     for(int i = 0; i < sphLow.nvertices(); i++)

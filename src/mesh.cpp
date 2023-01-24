@@ -21,14 +21,10 @@ SOFTWARE.
 */
 #include "mesh.h"
 
-#include <memory>
-
-using namespace std;
-
 namespace newresampler {
 
 Mesh::Mesh() {
-    string default_space = "NIFTI_XFORM_TALAIRACH";
+    std::string default_space = "NIFTI_XFORM_TALAIRACH";
     std::vector<double> transform(16, 0);
     transform[0] = 1;
     transform[5] = 1;
@@ -159,9 +155,9 @@ void Mesh::estimate_normals() {
         normals.emplace_back(local_normal(i));
 }
 
-vector<float> Mesh::getPointsAsVectors() const {
+std::vector<float> Mesh::getPointsAsVectors() const {
 
-    vector<float> ret;
+    std::vector<float> ret;
     for (int i = 0; i < nvertices(); i++)
     {
         ret.emplace_back(get_point(i).get_coord().X);
@@ -171,18 +167,18 @@ vector<float> Mesh::getPointsAsVectors() const {
     return ret;
 }
 
-vector<float> Mesh::getValuesAsVectors(int d) const {
+std::vector<float> Mesh::getValuesAsVectors(int d) const {
 
-    vector<float> ret;
+    std::vector<float> ret;
     for (unsigned int i = 0; i < pvalues[d].size(); i++)
         ret.push_back(get_pvalue(i, d));
 
     return ret;
 }
 
-vector<int> Mesh::getTrianglesAsVector() const {
+std::vector<int> Mesh::getTrianglesAsVector() const {
 
-    vector<int> ret;
+    std::vector<int> ret;
     for (int i = 0; i < ntriangles(); i++)
     {
         ret.emplace_back(triangles[i].get_vertex(0).get_no());
@@ -196,17 +192,17 @@ void Mesh::set_pvalue(unsigned int i, float val, int dim) {
 
     if (pvalues.empty())
     {
-        cout << "Mesh::set_pvalue, warning, pvalues have not been initialised. Generating pvalues field of length=number of vertices" << endl;
+        std::cout << "Mesh::set_pvalue, warning, pvalues have not been initialised. Generating pvalues field of length=number of vertices" << std::endl;
         initialize_pvalues(dim + 1, true);
     }
     else if ((int) pvalues.size() < dim + 1)
     {
-        cout << "Mesh::set_pvalue, warning, index exceeds known pvalues dimension. Appending pvalues" << endl;
+        std::cout << "Mesh::set_pvalue, warning, index exceeds known pvalues dimension. Appending pvalues" << std::endl;
         initialize_pvalues(dim - pvalues.size() + 1, true);
     }
     if (i >= pvalues[dim].size())
     {
-        cout << i << " dim " << dim << " " << pvalues[dim].size() << endl;
+        std::cout << i << " dim " << dim << " " << pvalues[dim].size() << std::endl;
         throw MeshException("Mesh::set_pvalue, index is incompatible with data dimensions");
     }
 
@@ -239,7 +235,7 @@ void Mesh::set_pvalues(const NEWMAT::Matrix &M, bool appendFieldData) {
     {
         for (int i = 1; i <= M.Nrows(); i++)
         {
-            vector<float> tmp_pvalues;
+            std::vector<float> tmp_pvalues;
             for (int j = 1; j <= M.Ncols(); j++)
                 tmp_pvalues.push_back(M(i, j));
 
@@ -250,7 +246,7 @@ void Mesh::set_pvalues(const NEWMAT::Matrix &M, bool appendFieldData) {
     {
         for (int i = 1; i <= M.Ncols(); i++)
         {
-            vector<float> tmp_pvalues;
+            std::vector<float> tmp_pvalues;
             for (int j = 1; j <= M.Nrows(); j++)
                 tmp_pvalues.push_back(M(j, i));
 
@@ -284,7 +280,7 @@ double Mesh::calculate_MaxVD() const {
     return MaxVD;
 }
 
-double Mesh::Calculate_MVD() const {
+double Mesh::calculate_MeanVD() const {
 
     // mean_inter_vertex_distance
     // calculate from first vertex only so not true unless regularised!
@@ -304,10 +300,10 @@ double Mesh::Calculate_MVD() const {
     return kr / k;
 }
 
-Mesh::FileType Mesh::meshFileType(const string &filename) const {
-    // 1: ascii, 2:vtk, 3: gii, 4 as .txt (for supplyng data in a text file) -1: unknown
+Mesh::FileType Mesh::meshFileType(const std::string &filename) const {
+
     if (filename.size() <= 5) { return FileType::DEFAULT; }
-    string last_3 = filename.substr(filename.size() - 3, 3);
+    std::string last_3 = filename.substr(filename.size() - 3, 3);
     if (last_3 == ".gz") {
         last_3 = filename.substr(filename.size() - 6, 3);
         if (last_3 == "gii") { return FileType::GIFTI; }
@@ -319,20 +315,20 @@ Mesh::FileType Mesh::meshFileType(const string &filename) const {
     else if (last_3 == "asc") { return FileType::ASCII; }
     else if (last_3 == "vtk") { return FileType::VTK; }
 
-    ifstream f(filename.c_str());
+    std::ifstream f(filename.c_str());
     //reading the header
-    string header;
+    std::string header;
     getline(f, header);
     {
-        string::size_type pos = header.find("# vtk DataFile Version");
-        if (pos != string::npos) {
+        std::string::size_type pos = header.find("# vtk DataFile Version");
+        if (pos != std::string::npos) {
             f.close();
             return FileType::VTK;
         }
     }
     {
-        string::size_type pos = header.find("#!ascii");
-        if (pos != string::npos) {
+        std::string::size_type pos = header.find("#!ascii");
+        if (pos != std::string::npos) {
             f.close();
             return FileType::ASCII;
         }
@@ -340,7 +336,7 @@ Mesh::FileType Mesh::meshFileType(const string &filename) const {
     return FileType::DEFAULT;
 }
 
-void Mesh::load(const string &filename, const bool loadSurfaceData, const bool appendFieldData) {
+void Mesh::load(const std::string &filename, const bool loadSurfaceData, const bool appendFieldData) {
     //  appendFieldData refers only to pvalue/tvalue fields.
     //  As such if you are reading a .func or a .shape following a .surf appendFieldData=false.
     Mesh::FileType type = meshFileType(filename);
@@ -353,12 +349,12 @@ void Mesh::load(const string &filename, const bool loadSurfaceData, const bool a
     } else if (type == FileType::MATRIX || type == FileType::DPV) {
         load_matrix(filename, type);
     } else {
-        cerr << "Mesh::load:error reading file: " << filename << "  ... Unknown format" << endl;
+        std::cerr << "Mesh::load:error reading file: " << filename << "  ... Unknown format" << std::endl;
         exit(1);
     }
 }
 
-void Mesh::load_gifti(const string &filename, const bool loadSurfaceData, const bool appendFieldData) {
+void Mesh::load_gifti(const std::string &filename, const bool loadSurfaceData, const bool appendFieldData) {
     NEWMESH::GIFTIwrapper reader;
     reader.readGIFTI(filename);
 
@@ -370,36 +366,36 @@ void Mesh::load_gifti(const string &filename, const bool loadSurfaceData, const 
     if (loadSurfaceData) {
         points.clear();
         triangles.clear();
-        vector<NEWMESH::GIFTIfield> surfaceData = reader.returnSurfaceFields();
+        std::vector<NEWMESH::GIFTIfield> surfaceData = reader.returnSurfaceFields();
         global_defaultcoord = surfaceData[0].getCoordSystems();  // save out a default coord system
 
         for (int point = 0; point < surfaceData[0].getDim(0); point++) {
-            vector<float> coords(surfaceData[0].fVector(point));
+            std::vector<float> coords(surfaceData[0].fVector(point));
             std::shared_ptr<Mpoint> m = std::make_shared<Mpoint>(
                     coords[0], coords[1], coords[2], point);
             points.push_back(m);
         }
 
         for (int triangle = 0; triangle < surfaceData[1].getDim(0); triangle++) {
-            vector<int> points_vec(surfaceData[1].iVector(triangle));
+            std::vector<int> points_vec(surfaceData[1].iVector(triangle));
             Triangle t(points[points_vec[0]], points[points_vec[1]], points[points_vec[2]], triangle);
             push_triangle(t);
         }
     }
 
-    vector<NEWMESH::GIFTIfield> nonSurfaceData = reader.returnNonSurfaceFields();
+    std::vector<NEWMESH::GIFTIfield> nonSurfaceData = reader.returnNonSurfaceFields();
     int point;
 
     for (auto & dim : nonSurfaceData) {
         if (points.empty() || dim.getDim(0) == (int) points.size()) {
-            vector<float> tmp_pvalues;
+            std::vector<float> tmp_pvalues;
             for (point = 0; point < dim.getDim(0); point++) {
                 tmp_pvalues.push_back(dim.fScalar(point));
             }
             pvalues.push_back(tmp_pvalues);
         } else if (dim.getDim(0) ==
                    (int) triangles.size()) {
-            vector<float> tmp_tvalues;
+            std::vector<float> tmp_tvalues;
             for (point = 0; point < dim.getDim(0); point++) {
                 tmp_tvalues.push_back(dim.fScalar(point));
             }
@@ -410,19 +406,19 @@ void Mesh::load_gifti(const string &filename, const bool loadSurfaceData, const 
     global_GIFTIlabels = reader.GIFTIlabels;
 }
 
-void Mesh::load_vtk(const string &filename) {
+void Mesh::load_vtk(const std::string &filename) {
     // cannot provide field data - surface only
     points.clear();
     triangles.clear();
 
-    ifstream f(filename.c_str());
+    std::ifstream f(filename.c_str());
     if (f.is_open()) {
         //reading the header
-        string header;
+        std::string header;
         getline(f, header);
-        string::size_type pos = header.find("# vtk DataFile Version");
-        if (pos == string::npos) {
-            cerr << "Mesh::load_vtk:error in the header" << endl;
+        std::string::size_type pos = header.find("# vtk DataFile Version");
+        if (pos == std::string::npos) {
+            std::cerr << "Mesh::load_vtk:error in the header" << std::endl;
             exit(1);
         }
         getline(f, header);
@@ -460,12 +456,12 @@ void Mesh::load_vtk(const string &filename) {
         }
         f.close();
     } else {
-        cout << "Mesh::error opening file: " << filename << endl;
+        std::cout << "Mesh::error opening file: " << filename << std::endl;
         exit(1);
     }
 }
 
-void Mesh::load_ascii(const string &filename, const bool loadSurfaceData,
+void Mesh::load_ascii(const std::string &filename, const bool loadSurfaceData,
                       const bool appendFieldData) { //load a freesurfer ascii mesh
 // if loadSurfaceData = true then pvalues are ignored (for compatability with gifti, where .surf and .func are loaded separately)
 
@@ -479,14 +475,14 @@ void Mesh::load_ascii(const string &filename, const bool loadSurfaceData,
         tvalues.clear();
     }
 
-    ifstream f(filename.c_str());
+    std::ifstream f(filename.c_str());
     if (f.is_open()) {
         //reading the header
-        string header;
+        std::string header;
         getline(f, header);
-        string::size_type pos = header.find("#!ascii");
-        if (pos == string::npos) {
-            cerr << "Mesh::load_ascii:error in the header" << endl;
+        std::string::size_type pos = header.find("#!ascii");
+        if (pos == std::string::npos) {
+            std::cerr << "Mesh::load_ascii:error in the header" << std::endl;
             exit(1);
         }
 
@@ -495,7 +491,7 @@ void Mesh::load_ascii(const string &filename, const bool loadSurfaceData,
         f >> NVertices >> NFaces;
 
         if (!loadSurfaceData) {
-            vector<float> tmp_pvalues(NVertices, 0);
+            std::vector<float> tmp_pvalues(NVertices, 0);
             pvalues.push_back(tmp_pvalues);
         }
         //reading the points
@@ -512,7 +508,7 @@ void Mesh::load_ascii(const string &filename, const bool loadSurfaceData,
         //reading the triangles
 
         if (!loadSurfaceData) {
-            vector<float> tmp_tvalues(NFaces, 0);
+            std::vector<float> tmp_tvalues(NFaces, 0);
             tvalues.push_back(tmp_tvalues);
         }
 
@@ -528,23 +524,23 @@ void Mesh::load_ascii(const string &filename, const bool loadSurfaceData,
         }
         f.close();
     } else {
-        cout << "Mesh::load_ascii:error opening file: " << filename << endl;
+        std::cout << "Mesh::load_ascii:error opening file: " << filename << std::endl;
         exit(1);
     }
 }
 
-void Mesh::load_ascii_file(const string &filename) { //load a freesurfer ascii mesh for pvalues only
+void Mesh::load_ascii_file(const std::string &filename) { //load a freesurfer ascii mesh for pvalues only
     // loads surface & data
     clear();
 
-    ifstream f(filename.c_str());
+    std::ifstream f(filename.c_str());
     if (f.is_open()) {
         //reading the header
-        string header;
+        std::string header;
         getline(f, header);
-        string::size_type pos = header.find("#!ascii");
-        if (pos == string::npos) {
-            cerr << "Mesh::load_ascii:error in the header" << endl;
+        std::string::size_type pos = header.find("#!ascii");
+        if (pos == std::string::npos) {
+            std::cerr << "Mesh::load_ascii:error in the header" << std::endl;
             exit(1);
         }
 
@@ -552,7 +548,7 @@ void Mesh::load_ascii_file(const string &filename) { //load a freesurfer ascii m
         int NVertices, NFaces;
         f >> NVertices >> NFaces;
 
-        vector<float> tmp_pvalues;
+        std::vector<float> tmp_pvalues;
 
         for (int i = 0; i < NVertices; i++) {
             double x, y, z;
@@ -564,7 +560,7 @@ void Mesh::load_ascii_file(const string &filename) { //load a freesurfer ascii m
         }
         pvalues.push_back(tmp_pvalues);
 
-        vector<float> tmp_tvalues;
+        std::vector<float> tmp_tvalues;
         tvalues.push_back(tmp_tvalues);
 
         for (int i = 0; i < NFaces; i++) {
@@ -579,12 +575,12 @@ void Mesh::load_ascii_file(const string &filename) { //load a freesurfer ascii m
         f.close();
 
     } else {
-        cout << "Mesh::load_ascii:error opening file: " << filename << endl;
+        std::cout << "Mesh::load_ascii:error opening file: " << filename << std::endl;
         exit(1);
     }
 }
 
-void Mesh::load_matrix(const string &filename,
+void Mesh::load_matrix(const std::string &filename,
                        const Mesh::FileType &type) {  // for pvalues only - when data is held in a textfile
     // cannot provide field data - surface only (also reads .dpv files)
     NEWMAT::Matrix tmp, tmp2;
@@ -594,22 +590,22 @@ void Mesh::load_matrix(const string &filename,
         tmp.ReSize(tmp.Nrows(), 1);
 
         if (tmp2.Ncols() != 5) {
-            cout << "Mesh::load_dpv:error opening file (wrong format) : " << filename << endl;
+            std::cout << "Mesh::load_dpv:error opening file (wrong format) : " << filename << std::endl;
             exit(1);
         }
         for (int i = 1; i <= tmp.Nrows(); i++) {
             if (tmp2(i, 1) != i - 1) {
-                cout << i << " " << tmp2(i, 1) << "Mesh::load_dpv:error opening file (wrong format 2) : "
-                     << filename << endl;
+                std::cout << i << " " << tmp2(i, 1) << "Mesh::load_dpv:error opening file (wrong format 2) : "
+                     << filename << std::endl;
                 exit(1);
             }
             tmp(i, 1) = tmp2(i, 5);
         }
     }
     if (tmp.Nrows() == 0 && tmp.Ncols() == 0) {
-        cout
+        std::cout
                 << "Mesh::load_txt:error opening file (wrong format). Note matrix file must be delimited with spaces ?? "
-                << endl;
+                << std::endl;
         exit(1);
     }
     if (tmp.Ncols() == 5) {
@@ -618,13 +614,13 @@ void Mesh::load_matrix(const string &filename,
             if (tmp(i, 1) == i - 1) ind++;
 
         if (ind == tmp.Nrows()) {
-            cout << "WARNING: this looks like a dpv file but is being read as a text file!! " << endl;
+            std::cout << "WARNING: this looks like a dpv file but is being read as a text file!! " << std::endl;
         }
     }
     set_pvalues(tmp);
 }
 
-void Mesh::save(const string &filename) const {
+void Mesh::save(const std::string &filename) const {
 
     Mesh::FileType type = meshFileType(filename);
     switch (type) {
@@ -649,12 +645,12 @@ void Mesh::save(const string &filename) const {
     }
 }
 
-void Mesh::save_gifti(const string &s) const {
-    string filename(s);
-    string last_3 = filename.substr(filename.size() - 3, 3);
+void Mesh::save_gifti(const std::string &s) const {
+    std::string filename(s);
+    std::string last_3 = filename.substr(filename.size() - 3, 3);
     NEWMESH::GIFTIwrapper writer;
 
-    string subtype;
+    std::string subtype;
 
     if (last_3 != "gii") {
         if (last_3 != ".gz") {
@@ -670,28 +666,28 @@ void Mesh::save_gifti(const string &s) const {
     //writer.report();
     if (subtype == ".surf") {
 
-        vector<NEWMESH::GIFTIfield> surfaceData;
-        vector<int> dims(2, 3); //default as 3-vector for surface
+        std::vector<NEWMESH::GIFTIfield> surfaceData;
+        std::vector<int> dims(2, 3); //default as 3-vector for surface
         dims[0] = points.size();
 
-        vector<float> pointData(getPointsAsVectors());
+        std::vector<float> pointData(getPointsAsVectors());
         surfaceData.emplace_back(NiftiIO::NIFTI_INTENT_POINTSET, NiftiIO::NIFTI_TYPE_FLOAT32, 2, dims.data(), pointData.data(),
                            GIFTI_IND_ORD_ROW_MAJOR, global_defaultcoord);
 
         dims[0] = triangles.size();
-        vector<int> triangleData(getTrianglesAsVector());
+        std::vector<int> triangleData(getTrianglesAsVector());
 
         surfaceData.emplace_back(NiftiIO::NIFTI_INTENT_TRIANGLE, NiftiIO::NIFTI_TYPE_INT32, 2, dims.data(), triangleData.data(),
                            GIFTI_IND_ORD_ROW_MAJOR, global_defaultcoord);
         writer.allFields = surfaceData;
         writer.writeGIFTI(filename, GIFTI_ENCODING_B64GZ);
     } else if (subtype == ".func" || subtype == "shape") {
-        vector<int> scalardims(1);
-        vector<NEWMESH::GIFTIfield> fieldData;
+        std::vector<int> scalardims(1);
+        std::vector<NEWMESH::GIFTIfield> fieldData;
 
         for (unsigned int dim = 0; dim < pvalues.size(); dim++) {
             scalardims[0] = pvalues[dim].size();
-            vector<float> valueData(getValuesAsVectors(dim));
+            std::vector<float> valueData(getValuesAsVectors(dim));
             fieldData.emplace_back(NiftiIO::NIFTI_INTENT_NONE, NiftiIO::NIFTI_TYPE_FLOAT32, 1, scalardims.data(), valueData.data(),
                                GIFTI_IND_ORD_ROW_MAJOR);
         }
@@ -700,53 +696,53 @@ void Mesh::save_gifti(const string &s) const {
     }
 }
 
-void Mesh::save_vtk(const string &s) const {
-    string filename(s);
-    string last_3 = filename.substr(filename.size() - 3, 3);
+void Mesh::save_vtk(const std::string &s) const {
+    std::string filename(s);
+    std::string last_3 = filename.substr(filename.size() - 3, 3);
     if (last_3 != "vtk") {
         filename = filename + ".vtk";
     }
 
-    ofstream flot(filename.c_str());
+    std::ofstream flot(filename.c_str());
     if (flot.is_open()) {
-        flot << "# vtk DataFile Version 3.0" << endl
-             << "surface file" << endl
-             << "ASCII" << endl
-             << "DATASET POLYDATA" << endl
+        flot << "# vtk DataFile Version 3.0" << std::endl
+             << "surface file" << std::endl
+             << "ASCII" << std::endl
+             << "DATASET POLYDATA" << std::endl
              << "POINTS ";
-        flot << points.size() << "  float" << endl;
+        flot << points.size() << "  float" << std::endl;
 
         for (const auto & point : points) {
             //	flot.precision(6);
             flot << point->get_coord().X << " "
                  << point->get_coord().Y << " "
-                 << point->get_coord().Z << endl;
+                 << point->get_coord().Z << std::endl;
 #ifdef PPC64
             if ((n++ % 20) == 0) flot.flush();
 #endif
         }
-        flot << "POLYGONS " << triangles.size() << " " << triangles.size() * 4 << endl;
+        flot << "POLYGONS " << triangles.size() << " " << triangles.size() * 4 << std::endl;
         for (const auto & triangle : triangles)
             flot << "3 "
                  << triangle.get_vertex(0).get_no() << " "
                  << triangle.get_vertex(1).get_no() << " "
-                 << triangle.get_vertex(2).get_no() << " " << endl;
+                 << triangle.get_vertex(2).get_no() << " " << std::endl;
 #ifdef PPC64
         if ((n++ % 20) == 0) flot.flush();
 #endif
     } else {
-        cerr << "::save_vtk:error opening file " << filename << " for writing" << endl;
+        std::cerr << "::save_vtk:error opening file " << filename << " for writing" << std::endl;
         exit(1);
     }
 }
 
-void Mesh::save_ascii(const string &s) const {
-    string filename(s);
-    string last_3 = filename.substr(filename.size() - 3, 3);
+void Mesh::save_ascii(const std::string &s) const {
+    std::string filename(s);
+    std::string last_3 = filename.substr(filename.size() - 3, 3);
     if (last_3 != "asc") { filename = filename + ".asc"; }
 
-    ofstream f(filename.c_str());
-    stringstream flot;
+    std::ofstream f(filename.c_str());
+    std::stringstream flot;
     if (f.is_open()) {
         int ptcount(0), tricount(0);
         for (unsigned int i = 0; i < points.size(); i++) {
@@ -757,7 +753,7 @@ void Mesh::save_ascii(const string &s) const {
             flot << points[i]->get_coord().X << " "
                  << points[i]->get_coord().Y << " "
                  << points[i]->get_coord().Z << " "
-                 << val << endl;
+                 << val << std::endl;
             ptcount++;
         }
         for (unsigned int i = 0; i < triangles.size(); i++) {
@@ -767,22 +763,22 @@ void Mesh::save_ascii(const string &s) const {
 
             flot << triangles[i].get_vertex(0).get_no() << " "
                  << triangles[i].get_vertex(1).get_no() << " "
-                 << triangles[i].get_vertex(2).get_no() << " " << val << endl;
+                 << triangles[i].get_vertex(2).get_no() << " " << val << std::endl;
             tricount++;
         }
-        f << "#!ascii from Mesh" << endl;
-        f << ptcount << " " << tricount << endl << flot.str();
+        f << "#!ascii from Mesh" << std::endl;
+        f << ptcount << " " << tricount << std::endl << flot.str();
         f.close();
-    } else cerr << "Mesh::save_ascii:error opening file for writing: " << s << endl;
+    } else std::cerr << "Mesh::save_ascii:error opening file for writing: " << s << std::endl;
 
 }
 
-void Mesh::save_dpv(const string &s) const {
-    string filename(s);
-    string last_3 = filename.substr(filename.size() - 3, 3);
+void Mesh::save_dpv(const std::string &s) const {
+    std::string filename(s);
+    std::string last_3 = filename.substr(filename.size() - 3, 3);
     if (last_3 != "dpv") { filename = filename + ".dpv"; }
 
-    ofstream f(filename.c_str());
+    std::ofstream f(filename.c_str());
     if (f.is_open()) {
         if (pvalues.empty()) {
             throw MeshException("Mesh::save_dpv, cannot write out as dpv as there is no data");
@@ -794,7 +790,7 @@ void Mesh::save_dpv(const string &s) const {
             for (unsigned int i = 0; i < pvalues[0].size(); i++) {
                 float val = pvalues[0][i];  /// outputs value for first column only
                 if (i < 100)
-                    f << setfill('0') << setw(3) << i;
+                    f << std::setfill('0') << std::setw(3) << i;
                 else
                     f << i;
 
@@ -802,24 +798,24 @@ void Mesh::save_dpv(const string &s) const {
                     f << " " << points[i]->get_coord().X
                       << " " << points[i]->get_coord().Y
                       << " " << points[i]->get_coord().Z
-                      << " " << val << endl;
+                      << " " << val << std::endl;
 
                 } else {
-                    f << " 0 0 0 " << val << endl;
+                    f << " 0 0 0 " << val << std::endl;
 
                 }
             }
             f.close();
         }
-    } else cerr << "Mesh::save_ascii:error opening file for writing: " << s << endl;
+    } else std::cerr << "Mesh::save_ascii:error opening file for writing: " << s << std::endl;
 }
 
-void Mesh::save_matrix(const string &s) const {
-    string filename(s);
-    string last_3 = filename.substr(filename.size() - 3, 3);
+void Mesh::save_matrix(const std::string &s) const {
+    std::string filename(s);
+    std::string last_3 = filename.substr(filename.size() - 3, 3);
     if (last_3 != "txt") { filename = filename + ".txt"; }
 
-    ofstream f(filename.c_str());
+    std::ofstream f(filename.c_str());
     if (f.is_open()) {
         if (pvalues.empty()) {
             throw MeshException("Mesh::save_matrix, cannot write out matrix as there is no data");
@@ -831,11 +827,11 @@ void Mesh::save_matrix(const string &s) const {
                 for (float i : pvalue) {
                     f << i << " ";
                 }
-                f << endl;
+                f << std::endl;
             }
             f.close();
         }
-    } else cerr << "Mesh::save_ascii:error opening file for writing: " << s << endl;
+    } else std::cerr << "Mesh::save_ascii:error opening file for writing: " << s << std::endl;
 }
 
 void Mesh::clear() {
@@ -866,34 +862,6 @@ int Mesh::get_total_triangles(int i) const {
     if (i >= (int) points.size() || points.empty())
         throw MeshException("get_coord: index exceeds data dimensions");
     return points[i]->ntriangles();
-}
-
-std::vector<Point> Mesh::get_bounding_box() const {
-
-    const double LOWEST = std::numeric_limits<double>::lowest();
-    const double LARGEST = std::numeric_limits<double>::max();
-
-    std::vector<Point> bounding_box;
-    Point min(LARGEST,LARGEST,LARGEST), max(LOWEST,LOWEST,LOWEST);
-
-    for(const auto& tr : triangles)
-    {
-        for(int i = 0; i < 3; ++i)
-        {
-            Point vertex = tr.get_vertex_coord(i);
-            if(vertex.X < min.X) min.X = vertex.X;
-            if(vertex.Y < min.Y) min.Y = vertex.Y;
-            if(vertex.Z < min.Z) min.Z = vertex.Z;
-            if(vertex.X > max.X) max.X = vertex.X;
-            if(vertex.Y > max.Y) max.Y = vertex.Y;
-            if(vertex.Z > max.Z) max.Z = vertex.Z;
-        }
-    }
-
-    bounding_box.push_back(min);
-    bounding_box.push_back(max);
-
-    return bounding_box;
 }
 
 int Mesh::get_resolution() const {
@@ -1376,856 +1344,6 @@ double compute_vertex_area(int ind, const Mesh& mesh) {
         sum += mesh.get_triangle_area(*i);
 
     return sum / mesh.get_total_triangles(ind);
-}
-
-bool check_for_intersections(int ind, double eps, Mesh& IN) {
-
-    Point c = IN.get_coord(ind);
-    Point V = c;
-    V.normalize();
-    bool a = false;
-
-    const Triangle& tr = IN.get_triangle_from_vertex(ind, 0);
-    c = IN.get_coord(ind);
-
-    Point N = tr.normal();
-    for (auto j = IN.tIDbegin(ind); j != IN.tIDend(ind); j++)
-    {
-        const Triangle& tr2 = IN.get_triangle(*j);
-        Point N2 = tr2.normal();
-
-        a = a || ((N | N2) <= 0.5);
-
-        if (a) break;
-    }
-
-    return a;
-}
-
-Point spatialgradient(int index, const Mesh& SOURCE) {
-// spatial gradient for vertex triangular mesh
-    Point grad, ci = SOURCE.get_coord(index);
-
-    for (auto j = SOURCE.tIDbegin(index); j != SOURCE.tIDend(index); j++)
-    {
-        Point v0 = SOURCE.get_triangle_vertex(*j, 0),
-              v1 = SOURCE.get_triangle_vertex(*j, 1),
-              v2 = SOURCE.get_triangle_vertex(*j, 2),
-              dA;
-
-        if ((ci - v0).norm() == 0)
-            dA = computeGradientOfBarycentricTriangle(v1, v2, v0);
-        else if ((ci - v1).norm() == 0)
-            dA = computeGradientOfBarycentricTriangle(v2, v0, v1);
-        else
-            dA = computeGradientOfBarycentricTriangle(v0, v1, v2);
-
-        grad = grad + dA;
-    }
-    return grad;
-}
-
-void unfold(Mesh& SOURCE) {
-
-    // check for intersections
-    std::vector<int> foldedvertices;
-    std::vector<Point> foldinggradients;
-    Point grad, ppp, ci;
-    double current_stepsize;
-    Mesh tmp = SOURCE;
-    Point pp;
-    bool folded = true;
-    int it = 0;
-    const double RAD = 100;
-
-    while (folded)
-    {
-        foldedvertices.clear();
-        foldinggradients.clear();
-
-        for (int i = 0; i < SOURCE.nvertices(); i++)
-            if (check_for_intersections(i, 0, SOURCE))
-                // identfy points that are flipped.
-                foldedvertices.push_back(i);
-
-        if (foldedvertices.empty()) folded = false;
-        else if (it % 100 == 0)
-            cout << " mesh is folded, total folded vertices =" << foldedvertices.size() << " unfold " << endl;
-
-        for (int foldedvertice : foldedvertices)
-        {
-            grad = spatialgradient(foldedvertice, SOURCE);  // estimates gradient of triangle area for all vertices that are detected as folded
-            foldinggradients.push_back(grad);
-        }
-
-        for (unsigned int i = 0; i < foldedvertices.size(); i++)
-        {
-            current_stepsize = 1;
-            ci = SOURCE.get_coord(foldedvertices[i]);
-            grad = foldinggradients[i];
-            do
-            {
-                pp = ci - grad * current_stepsize; // gradient points in direction of increasing area therefore opposite to desired direction
-                pp.normalize();
-                SOURCE.set_coord(foldedvertices[i],pp*RAD);
-                current_stepsize /= 2.0;
-            }
-            while(check_for_intersections(foldedvertices[i],0,SOURCE) == 1 && current_stepsize > 1e-3);
-
-            SOURCE.set_coord(foldedvertices[i],pp*RAD);
-        }
-        it++;
-        if(it == 1000) break;
-    }
-}
-
-NEWMAT::Matrix get_coordinate_transformation(double dNdT1,double dNdT2, NEWMAT::ColumnVector& Norm) {
-
-    Point G1(1, 0, dNdT1);
-    Point G2(0, 1, dNdT2);
-    Point G3 = G1 * G2;
-
-    G3 = G3 / sqrt((G3|G3));
-
-    NEWMAT::Matrix G(3,3);
-
-    G(1,1) = G1.X;
-    G(1,2) = G2.X;
-    G(1,3) = G3.X;
-    G(2,1) = G1.Y;
-    G(2,2) = G2.Y;
-    G(2,3) = G3.Y;
-    G(3,1) = G1.Z;
-    G(3,2) = G2.Z;
-    G(3,3) = G3.Z;
-    Norm(1) = G3.X;
-    Norm(2) = G3.Y;
-    Norm(3) = G3.Z;
-
-    return (G.i()).t();
-}
-
-NEWMAT::ColumnVector calculate_strains(int index, const std::vector<int>& kept, const Mesh& orig, const Mesh& final, const std::shared_ptr<NEWMAT::Matrix>& PrincipalStretches){
-
-    NEWMAT::ColumnVector STRAINS(4); STRAINS = 0;
-    Point Normal_O = orig.get_normal(index - 1);
-    NEWMAT::Matrix TRANS(3,3),
-                   principal_STRAINS(2, orig.nvertices());
-    double T1_coord = 0.0, T2_coord = 0.0;
-    Point orig_tang,final_tang,tmp;
-    //Tangent Tang;
-    NEWMAT::Matrix a, b, c, d;
-    int maxind, minind;
-
-    Tangs T = calculate_tangs(index - 1, orig);
-
-    TRANS = form_matrix_from_points(T.e1, T.e2, Normal_O, true);
-
-    NEWMAT::Matrix pseudo_inv, pseudo_V, pseudo_U;
-    NEWMAT::DiagonalMatrix pseudo_D;
-    NEWMAT::Matrix alpha(kept.size(),6),
-                   N(kept.size(),1),
-                   n(kept.size(),1),
-                   t1(kept.size(),1),
-                   t2(kept.size(),1);
-    alpha = 0; N = 0; n = 0; t1 = 0; t2 = 0;
-
-    for(int j = 0; j < (int)kept.size(); j++)
-    {
-        tmp = orig.get_coord(kept[j]) - orig.get_coord(index - 1);
-        projectPoint(tmp, T, T1_coord, T2_coord);
-        N(j+1,1) = tmp | Normal_O;
-
-        // fit poly
-        alpha(j+1,2) = T1_coord;
-        alpha(j+1,3) = T2_coord;
-        alpha(j+1,4) = 0.5 * T1_coord * T1_coord;
-        alpha(j+1,5) = 0.5 * T2_coord * T2_coord;
-        alpha(j+1,6) = T1_coord * T2_coord;
-
-        // get transformed coords
-        tmp = final.get_coord(kept[j]) - final.get_coord(index - 1);
-        projectPoint(tmp, T, T1_coord, T2_coord);
-
-        n(j + 1,1) = tmp | Normal_O;
-        t1(j + 1,1) = T1_coord;
-        t2(j + 1,1) = T2_coord;
-    }
-
-    SVD(alpha, pseudo_D, pseudo_U, pseudo_V);
-
-    for (int i = 1; i <= pseudo_D.Nrows(); i++)
-        if (pseudo_D(i) != 0)
-            pseudo_D(i) = 1 / pseudo_D(i);
-
-    pseudo_inv = pseudo_V * pseudo_D * pseudo_U.t();
-
-    // get coeffieicnts for different fits
-    a = pseudo_inv * N;
-    b = pseudo_inv * t1;
-    c = pseudo_inv * t2;
-    d = pseudo_inv * n;
-
-    double dNdT1, dNdT2, dt1dT1, dt1dT2, dt2dT1, dt2dT2, dndT1, dndT2;
-    dNdT1 = a(2,1); dNdT2 = a(3,1);
-    dt1dT1 = b(2,1); dt1dT2 = b(3,1);
-    dt2dT1 = c(2,1); dt2dT2 = c(3,1);
-    dndT1 = d(2,1); dndT2 = d(3,1);
-
-    NEWMAT::ColumnVector G3(3);
-    NEWMAT::Matrix G_cont = get_coordinate_transformation(dNdT1, dNdT2, G3);
-
-    Point g1(dt1dT1,dt2dT1,dndT1);
-    Point g2(dt1dT2,dt2dT2,dndT2);
-    Point g3 = g1 * g2; g3 = g3 / sqrt((g3|g3));
-
-    NEWMAT::Matrix g(3,3);
-    g(1,1)=g1.X; g(1,2)=g2.X; g(1,3)=g3.X;
-    g(2,1)=g1.Y; g(2,2)=g2.Y; g(2,3)=g3.Y;
-    g(3,1)=g1.Z; g(3,2)=g2.Z; g(3,3)=g3.Z;
-
-    NEWMAT::Matrix F = g * G_cont.t();
-    NEWMAT::Matrix C = F.t() * F;
-
-    NEWMAT::DiagonalMatrix Omega;
-    NEWMAT::Matrix U, Umax, Umin;
-    SVD(C,Omega,U);
-
-    NEWMAT::Matrix mm = G3.t() * U;
-
-    if (abs(mm(1, 1)) >= abs(mm(1, 2)) && abs(mm(1, 1)) >= abs(mm(1, 3)))
-        if (sqrt(Omega(2)) > sqrt(Omega(3)))
-        {
-            maxind = 2;
-            minind = 3;
-        }
-        else
-        {
-            maxind = 3;
-            minind = 2;
-        }
-
-    else if (abs(mm(1, 2)) >= abs(mm(1, 1)) && abs(mm(1, 2)) >= abs(mm(1, 3)))
-        if (sqrt(Omega(1)) > sqrt(Omega(3)))
-        {
-            maxind = 1;
-            minind = 3;
-        }
-        else
-        {
-            maxind = 3;
-            minind = 1;
-        }
-    else
-    {
-        if (sqrt(Omega(1)) > sqrt(Omega(2)))
-        {
-            maxind = 1;
-            minind = 2;
-        }
-        else
-        {
-            maxind = 2;
-            minind = 1;
-        }
-    }
-
-    STRAINS(1) = sqrt(Omega(maxind));
-    STRAINS(2) = sqrt(Omega(minind));
-    Umax = TRANS.i() * U.SubMatrix(1,3,maxind,maxind);
-    Umin = TRANS.i() * U.SubMatrix(1,3,minind,minind);
-
-    if(PrincipalStretches)
-    {
-        (*PrincipalStretches)(index,1) = Umax(1,1);
-        (*PrincipalStretches)(index,2) = Umax(2,1);
-        (*PrincipalStretches)(index,3) = Umax(3,1);
-        (*PrincipalStretches)(index,4) = Umin(1,1);
-        (*PrincipalStretches)(index,5) = Umin(2,1);
-        (*PrincipalStretches)(index,6) = Umin(3,1);
-    }
-
-    STRAINS(3) = 0.5 * (STRAINS(1)*STRAINS(1) - 1);
-    STRAINS(4) = 0.5 * (STRAINS(2)*STRAINS(2) - 1);
-
-    return STRAINS;
-}
-
-Mesh calculate_strains(double fit_radius, const Mesh& orig, const Mesh &final, const std::shared_ptr<NEWMAT::Matrix>& PrincipalStretches){
-
-    Mesh strain = final;
-    NEWMAT::Matrix strains(4, orig.nvertices());
-    NEWMAT::ColumnVector node_strain;
-    double dir_chk1, dir_chk2, dist, fit_temp;
-
-    vector<int> kept;
-
-    int neighbour, numneighbours = orig.nvertices();
-
-    if(PrincipalStretches) PrincipalStretches->ReSize(orig.nvertices(), 6);
-
-    for (int index = 1; index <= orig.nvertices(); index++)
-    {
-        //if(REL) numneighbours = REL->Nrows(index);
-        fit_temp = fit_radius;
-        while (kept.size() <= 8)
-        {
-            kept.clear();
-            for(int j = 1; j <= numneighbours; j++)
-            {
-                /*if(REL) neighbour = (*REL)(j,index);
-                else*/ neighbour = j;
-
-                dist = (orig.get_coord(index - 1) - orig.get_coord(neighbour - 1)).norm();
-
-                // reject points with normals in opposite directions
-                dir_chk1 = orig.get_normal(neighbour - 1) | orig.get_normal(index - 1);
-                dir_chk2 = 1; //Normals_F[j-1]|Normals_F[index-1]; ////SET to 1?
-
-                if(dist <= fit_temp && dir_chk1 >= 0 && dir_chk2 >= 0)
-                    kept.push_back(neighbour - 1);
-            }
-
-            if(kept.size() > 8)
-            {
-                node_strain = calculate_strains(index, kept, orig, final, PrincipalStretches);
-                strains(1, index) = node_strain(1);
-                strains(2, index) = node_strain(2);
-                strains(3, index) = node_strain(3);
-                strains(4, index) = node_strain(4);
-            }
-            else
-                fit_temp += 0.5;
-        }
-        kept.clear();
-    }
-
-    strain.set_pvalues(strains);
-
-    return strain;
-}
-
-Mesh calculate_triangular_strains(const Mesh& ORIG, const Mesh& FINAL, double MU, double KAPPA) {
-
-    Mesh STRAIN = FINAL;
-    NEWMAT::Matrix STRAINS(3,ORIG.ntriangles());
-
-    // get normals
-    for (int index = 0; index < ORIG.ntriangles(); index++)
-    {
-        std::shared_ptr<NEWMAT::ColumnVector> strainstmp = std::make_shared<NEWMAT::ColumnVector>(2);
-        STRAINS(3,index + 1) = calculate_triangular_strain(index, ORIG, FINAL, MU, KAPPA, strainstmp);
-        STRAINS(1,index+1) = (*strainstmp)(1);
-        STRAINS(2,index+1) = (*strainstmp)(2);
-    }
-
-    for (int index = 0; index < ORIG.nvertices(); index++)
-        for (int j = 0; j < 3; j++)
-        {
-            double SUM = 0.0;
-            for (auto i = ORIG.tIDbegin(index); i != ORIG.tIDend(index); i++)
-                SUM += STRAINS(j + 1, *i + 1);
-
-            SUM /= ORIG.get_total_triangles(index);
-            STRAIN.set_pvalue(index, SUM, j);
-        }
-
-    return STRAIN;
-}
-
-double calculate_triangular_strain(int index, const Mesh& ORIG, const Mesh& FINAL, double mu, double kappa,
-                                   const std::shared_ptr<NEWMAT::ColumnVector>& indexSTRAINS, double k_exp) {
-
-    NEWMAT::Matrix ORIG3D(3,3), FINAL3D(3,3),
-                   ORIG2D(3,3), FINAL2D(3,3),
-                   TRANS, TRANS2;
-    Point Normal_O = ORIG.get_triangle_normal(index),
-          Normal_F = FINAL.get_triangle_normal(index);
-
-    Tangs T = calculate_tri(index,ORIG);
-    Tangs T_trans = calculate_tri(index,FINAL);
-    double W = 0.0;
-    NEWMAT::Matrix TMP;
-    NEWMAT::DiagonalMatrix D, D2;
-
-    TRANS = form_matrix_from_points(T.e1, T.e2, Normal_O);
-    if(TRANS.Determinant() < 0)
-    {
-        TMP = TRANS;
-        TMP(1,1) = TRANS(1,2); TMP(2,1) = TRANS(2,2); TMP(3,1) = TRANS(3,2);
-        TMP(1,2) = TRANS(1,1); TMP(2,2) = TRANS(2,1); TMP(3,2) = TRANS(3,1);
-        TRANS = TMP;
-    }
-
-    TRANS2 = form_matrix_from_points(T_trans.e1,T_trans.e2,Normal_F);
-    if(TRANS.Determinant() < 0)
-    {
-        TMP = TRANS2;
-        TMP(1,1) = TRANS2(1,2); TMP(2,1) = TRANS2(2,2); TMP(3,1) = TRANS2(3,2);
-        TMP(1,2) = TRANS2(1,1); TMP(2,2) = TRANS2(2,1); TMP(3,2) = TRANS2(3,1);
-        TRANS2 = TMP;
-    }
-
-    for(int i = 0; i < 3; i++)
-    {
-        Point vertex = ORIG.get_triangle_vertex(index, i);
-        ORIG3D(i+1,1) = vertex.X; ORIG3D(i+1,2) = vertex.Y; ORIG3D(i+1,3) = vertex.Z;
-
-        vertex = FINAL.get_triangle_vertex(index, i);
-        FINAL3D(i+1,1) = vertex.X;	FINAL3D(i+1,2) = vertex.Y;	FINAL3D(i+1,3) = vertex.Z;
-    }
-
-    ORIG2D = ORIG3D * TRANS;
-    FINAL2D = FINAL3D * TRANS2;
-
-    W = triangle_strain(ORIG2D, FINAL2D, mu, kappa, indexSTRAINS, k_exp);
-
-    return W;
-}
-
-double calculate_triangular_strain(const Triangle& ORIG_tr, const Triangle& FINAL_tr, double mu, double kappa,
-                                   const std::shared_ptr<NEWMAT::ColumnVector>& indexSTRAINS, double k_exp) {
-
-    Point Normal_O = ORIG_tr.normal(), Normal_F = FINAL_tr.normal();
-    NEWMAT::Matrix ORIG3D(3,3), FINAL3D(3,3),
-                   ORIG2D(3,3), FINAL2D(3,3),
-                   TRANS, TRANS2;
-
-    Tangs T = calculate_tri(Normal_O);
-    Tangs T_trans = calculate_tri(Normal_F);
-    double W;
-    NEWMAT::Matrix TMP;
-    NEWMAT::DiagonalMatrix D, D2;
-
-    TRANS = form_matrix_from_points(T.e1,T.e2,Normal_O);
-    if(TRANS.Determinant() < 0)
-    {
-        TMP = TRANS;
-        TMP(1,1)=TRANS(1,2); TMP(2,1)=TRANS(2,2); TMP(3,1)=TRANS(3,2);
-        TMP(1,2)=TRANS(1,1); TMP(2,2)=TRANS(2,1); TMP(3,2)=TRANS(3,1);
-        TRANS = TMP;
-    }
-    TRANS2 = form_matrix_from_points(T_trans.e1,T_trans.e2,Normal_F);
-    if(TRANS.Determinant() < 0)
-    {
-        TMP = TRANS2;
-        TMP(1,1)=TRANS2(1,2); TMP(2,1)=TRANS2(2,2); TMP(3,1)=TRANS2(3,2);
-        TMP(1,2)=TRANS2(1,1); TMP(2,2)=TRANS2(2,1); TMP(3,2)=TRANS2(3,1);
-        TRANS2=TMP;
-    }
-
-    for(int i=0;i<3;i++){
-        Point vertex = ORIG_tr.get_vertex_coord(i);
-        ORIG3D(i+1,1) = vertex.X; ORIG3D(i+1,2) = vertex.Y; ORIG3D(i+1,3) = vertex.Z;
-
-        vertex = FINAL_tr.get_vertex_coord(i);
-        FINAL3D(i+1,1) = vertex.X;	FINAL3D(i+1,2) = vertex.Y;	FINAL3D(i+1,3) = vertex.Z;
-    }
-
-    ORIG2D = ORIG3D * TRANS;
-    FINAL2D = FINAL3D * TRANS2;
-
-    W = triangle_strain(ORIG2D, FINAL2D, mu, kappa, indexSTRAINS, k_exp);
-
-    return W;
-}
-
-double triangle_strain(const NEWMAT::Matrix& AA, const NEWMAT::Matrix & BB, double MU, double KAPPA, const std::shared_ptr<NEWMAT::ColumnVector>& strains, double k_exp) {
-
-    double c0,c1,c2,c3,c4,c5,c0c,c1c,c2c,c3c,c4c,c5c,I1,I3,J,W;
-    NEWMAT::Matrix Edges(2,2), edges(2,2);
-    NEWMAT::Matrix F, F3D(3,3), F3D_2;
-
-    F3D(3,1) = 0; F3D(3,2) = 0; F3D(3,3) = 1;
-
-    // all t0 distances
-    c0=AA(2,1)-AA(1,1); //x2-x1 t0
-    c1=AA(2,2)-AA(1,2); //y2-y1
-    c2=AA(3,1)-AA(2,1); //x3-x2
-    c3=AA(3,2)-AA(2,2); // y3-y2
-    c4=AA(3,1)-AA(1,1); // x3-x1
-    c5=AA(3,2)-AA(1,2); // y3-y1
-
-    //all tf distances
-    c0c=BB(2,1)-BB(1,1); //x2-x1 tf
-    c1c=BB(2,2)-BB(1,2); // y2-y1
-    c2c=BB(3,1)-BB(2,1); // x3-x2
-    c3c=BB(3,2)-BB(2,2); // y3-y2
-    c4c=BB(3,1)-BB(1,1);  // x3-x1
-    c5c=BB(3,2)-BB(1,2); // y3-y1
-
-    Edges(1,1)=c0; Edges(1,2)=c4; Edges(2,1)=c1; Edges(2,2)=c5;
-    edges(1,1)=c0c; edges(1,2)=c4c; edges(2,1)=c1c; edges(2,2)=c5c;
-
-    F = edges * Edges.i();
-
-    F3D(1,1)=F(1,1); F3D(1,2)=F(1,2); F3D(1,3)=0;
-    F3D(2,1)=F(2,1); F3D(2,2)=F(2,2); F3D(2,3)=0;
-
-    F3D_2 = F3D.t() * F3D;
-    I1 = F3D_2.Trace();
-    I3 = F3D_2.Determinant();
-
-    J = sqrt(I3);
-    double I1st_new = (I1 - 1.0) / J;
-    double R;
-    if (I1st_new <= 2)
-        R = 1.0;
-    else
-        R = 0.5 * (I1st_new + sqrt(I1st_new * I1st_new - 4));//convert I1* to (major strain) / (minor strain)
-
-    double Rshared = pow(R, k_exp), Jshared = pow(J, k_exp);//could use different exponents, but would be quite strange
-    W = 0.5 * (MU * (Rshared + 1.0 / Rshared - 2) + KAPPA * (Jshared + 1.0 / Jshared - 2));
-
-    // calculating prinicipal strains (for testing)
-    if(strains)
-    {
-        double a11,a21,a31,a12,a22,a32,a13,a23,a33;
-        double A, A11,A21,A31,A12,A22,A32,A13,A23,A33;
-        double B1,B2,B3;
-        double e11,e22,e12,X,Y;
-        //2*dx^2, then 2*dy^2, then 2*dx*dy
-        a11=2.*c0*c0 ;
-        a21=2.*c2*c2 ;
-        a31=2.*c4*c4;
-        a12=2.*c1*c1 ;
-        a22=2.*c3*c3 ;
-        a32=2.*c5*c5;
-        a13=4.*c0*c1 ;
-        a23=4.*c2*c3;
-        a33=4.*c4*c5;
-
-        A=a11*a22*a33+a12*a23*a31+a13*a21*a32-a13*a22*a31-a23*a32*a11-a33*a21*a12;
-
-        A11=(a22*a33-a32*a23)/A;
-        A12=(a13*a32-a12*a33)/A;
-        A13=(a12*a23-a13*a22)/A;
-        A21=(a23*a31-a21*a33)/A;
-        A22=(a11*a33-a13*a31)/A;
-        A23=(a13*a21-a11*a23)/A;
-        A31=(a21*a32-a22*a31)/A;
-        A32=(a12*a31-a11*a32)/A;
-        A33=(a11*a22-a12*a21)/A;
-
-        // deformed distances between points
-        B1=c0c*c0c+c1c*c1c-c0*c0-c1*c1;
-        B2=c2c*c2c+c3c*c3c-c2*c2-c3*c3;
-        B3=c4c*c4c+c5c*c5c-c4*c4-c5*c5;
-
-        // strains wrt x,y coords
-        e11=B1*A11+B2*A12+B3*A13;
-        e22=B1*A21+B2*A22+B3*A23;
-        e12=B1*A31+B2*A32+B3*A33;
-
-        X=e11+e22 ;
-        Y=e11-e22;
-
-        (*strains)(1)=X/2+sqrt((Y/2)*(Y/2)+(e12)*(e12)) ;
-        (*strains)(2)=X/2-sqrt((Y/2)*(Y/2)+(e12)*(e12));
-    }
-
-    return W;
-}
-
-Tangs calculate_tangs(int ind, const Mesh& SPH_in) {
-
-    Tangs T;
-    double mag;
-    Point a = SPH_in.local_normal(ind);
-    Point tmp = SPH_in.get_coord(ind);
-
-    if((a|tmp) < 0) a = a * -1;
-
-    if(abs(a.X) >= abs(a.Y) && abs(a.X) >= abs(a.Z))
-    {
-        mag = sqrt(a.Z*a.Z + a.Y*a.Y);
-        if(mag == 0)
-        {
-            T.e1.X = 0;
-            T.e1.Y = 0;
-            T.e1.Z = 1;
-        }
-        else
-        {
-            T.e1.X = 0;
-            T.e1.Y = -a.Z /mag;
-            T.e1.Z = a.Y /mag;
-        }
-    }
-    else if(abs(a.Y) >= abs(a.X) && abs(a.Y) >= abs(a.Z))
-    {
-        mag = sqrt(a.Z*a.Z + a.X*a.X);
-        if(mag == 0)
-        {
-            T.e1.X = 0;
-            T.e1.Y = 0;
-            T.e1.Z = 1;
-        }
-        else
-        {
-            T.e1.X = -a.Z/mag;
-            T.e1.Y = 0;
-            T.e1.Z = a.X /mag;
-        }
-    }
-    else
-    {
-        mag = sqrt(a.Y*a.Y + a.X*a.X);
-        if(mag == 0)
-        {
-            T.e1.X = 1;
-            T.e1.Y = 0;
-            T.e1.Z = 0;
-        }
-        else
-        {
-            T.e1.X = -a.Y/mag;
-            T.e1.Y = a.X/mag;
-            T.e1.Z = 0;
-        }
-    }
-    T.e2 = a * T.e1;
-    T.e2.normalize();
-
-    return T;
-}
-
-Tangs calculate_tri(const Point& a) {
-
-    Tangs T;
-    Point b(1.0f,0.0f,0.0f);
-    Point c = a * b;
-
-    double len = c.X * c.X + c.Y * c.Y + c.Z * c.Z;
-
-    if (len == 0.0)
-    {
-        /* the vector b was parallel to a */
-        b.X = 0.0f;
-        b.Y = 1.0f;
-        b.Z = 0.0f;
-        c = a * b;
-        len = c.X * c.X + c.Y * c.Y + c.Z * c.Z;
-    }
-
-    /* normalize */
-    len = std::sqrt(len);
-
-    if (len == 0.0)
-    {
-        cout<<"Tangs Tangent:: first tangent vector of length zero at vertex: "<<endl;
-        len = 1 ;
-    }
-
-    T.e1.X = c.X / len ;
-    T.e1.Y = c.Y / len ;
-    T.e1.Z = c.Z / len ;
-
-    b = a * c;
-    /* normalize */
-    len = std::sqrt(b.X * b.X + b.Y * b.Y + b.Z * b.Z);
-
-    if (len == 0)
-    {
-        cout<<"Tangs Tangent::second tangent vector of length zero at vertex: "<<endl;
-        len = 1 ;
-    }
-
-    T.e2.X = b.X / len ;
-    T.e2.Y = b.Y / len ;
-    T.e2.Z = b.Z / len ;
-
-    return T;
-}
-
-Tangs calculate_tri(int ind, const Mesh& SPH_in) {
-
-    Tangs T;
-    Point a = SPH_in.get_triangle_normal(ind);
-    Point b(1.0f,0.0f,0.0f);
-    Point c = a*b;
-
-    double len = c.X * c.X + c.Y * c.Y + c.Z * c.Z;
-
-    if (len == 0.0)
-    {
-        /* the vector b was parallel to a */
-        b.X = 0.0f;
-        b.Y = 1.0f;
-        b.Z = 0.0f;
-        c = a * b;
-        len = c.X * c.X + c.Y * c.Y + c.Z * c.Z;
-    }
-
-    /* normalize */
-    len = std::sqrt(len);
-
-    if (len == 0.0)
-    {
-        cout<<"Tangs Tangent:: first tangent vector of length zero at vertex: "<<ind<<endl;
-        len = 1;
-    }
-
-    T.e1.X = c.X / len ;
-    T.e1.Y = c.Y / len ;
-    T.e1.Z = c.Z / len ;
-
-    b = a * c;
-
-    /* normalize */
-    len = std::sqrt(b.X * b.X + b.Y * b.Y + b.Z * b.Z);
-
-    if (len == 0)
-    {
-        cout<<"Tangs Tangent::second tangent vector of length zero at vertex: "<<ind<<endl;
-        len = 1;
-    }
-
-    T.e2.X = b.X / len ;
-    T.e2.Y = b.Y / len ;
-    T.e2.Z = b.Z / len ;
-
-    return T;
-}
-
-void multivariate_histogram_normalization(MISCMATHS::BFMatrix& IN,
-                                          MISCMATHS::BFMatrix& REF,
-                                          const std::shared_ptr<Mesh>& EXCL_IN,
-                                          const std::shared_ptr<Mesh>& EXCL_REF,
-                                          bool rescale) {
-
-    NEWMAT::ColumnVector CDF_in, CDF_ref;
-    NEWMAT::ColumnVector datain(IN.Ncols()), dataref(REF.Ncols());
-    double max, min;
-    NEWMAT::ColumnVector excluded_in(IN.Ncols()); excluded_in = 1;
-    NEWMAT::ColumnVector excluded_ref(REF.Ncols()); excluded_ref = 1;
-    int numbins = 256;
-
-    for(int d = 1; d <= (int) IN.Nrows(); d++)
-    {
-        for (unsigned int i = 1; i <= IN.Ncols(); i++)
-        {
-            datain(i) = IN.Peek(d,i);
-
-            if(EXCL_IN)
-            { // if using an exclusion mask these values will be eliminated from the histogram matching
-                if(EXCL_IN->get_dimension() >= d)
-                    excluded_in(i) = EXCL_IN->get_pvalue(i-1,d-1);
-                else
-                    excluded_in(i) = EXCL_IN->get_pvalue(i-1);
-            }
-        }
-
-        for (unsigned int i = 1; i <= REF.Ncols(); i++)
-        {
-            dataref(i) = REF.Peek(d,i);
-
-            if(EXCL_REF)
-            {
-                if(EXCL_REF->get_dimension() >= d)
-                    excluded_ref(i) = EXCL_REF->get_pvalue(i-1,d-1);
-                else
-                    excluded_ref(i) = EXCL_REF->get_pvalue(i-1);
-            }
-        }
-
-        MISCMATHS::Histogram Hist_in(datain,numbins),
-                             Hist_ref(dataref,numbins);
-        Hist_in.generate(excluded_in);
-        Hist_in.setexclusion(excluded_in);
-
-        Hist_ref.generate(excluded_ref);
-        Hist_ref.setexclusion(excluded_ref);
-
-        Hist_in.generateCDF();
-        Hist_ref.generateCDF();
-
-        Hist_in.match(Hist_ref);
-
-        datain =Hist_in.getsourceData();
-
-        CDF_in = Hist_in.getCDF();
-
-        for (unsigned int i = 1; i <= IN.Ncols(); i++)
-            IN.Set(d, i, datain(i));
-
-        if(rescale)
-        {
-            if(d>1)
-            {
-                set_range(d,IN,excluded_in,max,min);
-                set_range(d,REF,excluded_ref,max,min);
-            }
-            else
-            {
-                get_range(d,IN,excluded_in,max,min);
-            }
-        }
-    }
-}
-
-void get_range(int dim, const MISCMATHS::BFMatrix& M, const NEWMAT::ColumnVector& excluded, double& min, double& max) {
-
-    max = std::numeric_limits<double>::lowest();
-    min = std::numeric_limits<double>::max();
-
-    for (unsigned int i = 1; i <= M.Ncols(); i++)
-    {
-        if (M.Peek(dim, i) > max && excluded(i) != 0)
-            max = M.Peek(dim, i);
-        if (M.Peek(dim, i) < min && excluded(i) != 0)
-            min = M.Peek(dim, i);
-    }
-}
-
-void set_range(int dim, MISCMATHS::BFMatrix& M, const NEWMAT::ColumnVector& excluded, double& min, double& max) {
-
-    double nmin = std::numeric_limits<double>::max(),
-           nmax = std::numeric_limits<double>::lowest(),
-           range = max - min;
-    double nval, val;
-
-    for (unsigned int i = 1; i <= M.Ncols(); i++)
-    {
-        if (M.Peek(dim, i) > nmax && excluded(i) != 0)
-            nmax = M.Peek(dim, i);
-        if (M.Peek(dim, i) < nmin && excluded(i) != 0)
-            nmin = M.Peek(dim, i);
-    }
-
-    double nrange = nmax - nmin;
-
-    for (unsigned int i = 1; i <= M.Ncols(); i++)
-        if (excluded(i) != 0)
-        {
-            nval = (M.Peek(dim, i) - nmin) / nrange;
-            val = nmin + nval * range;
-            M.Set(dim, i, val);
-        }
-
-}
-
-void set_data(const std::string& dataname, std::shared_ptr<MISCMATHS::BFMatrix>& BF, Mesh& M, bool issparse) {
-
-    if(issparse)
-    {
-        MISCMATHS::SpMat<double> sparse_mat(dataname);
-        BF = std::shared_ptr<MISCMATHS::BFMatrix>(new MISCMATHS::SparseBFMatrix<double>(sparse_mat));
-        // may not be desirable to do it this way if dimensions are v high
-    }
-    else
-    {
-        M.load(dataname,false,false);
-        BF = std::shared_ptr<MISCMATHS::BFMatrix>(new MISCMATHS::FullBFMatrix(M.get_pvalues()));
-    }
-
-    if((int)BF->Ncols() != M.npvalues())
-    {
-        if((int)BF->Nrows() != M.npvalues())
-            throw MeshException("data does not match mesh dimensions");
-        else
-            BF = BF->Transpose();
-    }
 }
 
 bool operator==(const Mesh& M1, const Mesh& M2) {

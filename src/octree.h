@@ -28,6 +28,7 @@ https://github.com/Washington-University/workbench/blob/master/src/Files/SignedD
 #define NEWRESAMPLER_OCTREE_H
 
 #include "node.h"
+#include "mesh.h"
 
 namespace newresampler {
 

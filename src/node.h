@@ -26,7 +26,7 @@ Original: https://github.com/Washington-University/workbench/blob/master/src/Com
 #ifndef NEWRESAMPLER_NODE_H
 #define NEWRESAMPLER_NODE_H
 
-#include "mesh.h"
+#include "triangle.h"
 
 namespace newresampler {
 

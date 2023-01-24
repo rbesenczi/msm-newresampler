@@ -170,11 +170,11 @@ std::map<int,double> calc_barycentric_weights(const Point& v1, const Point& v2,
     Point PP;
     std::map<int,double> weights;
 
-    projectPoint(vref, v1, v2, v3, PP);
+    project_point(vref, v1, v2, v3, PP);
 
-    Aa = computeArea(PP, v2, v3);
-    Ab = computeArea(PP, v1, v3);
-    Ac = computeArea(PP, v1, v2);
+    Aa = compute_area(PP, v2, v3);
+    Ab = compute_area(PP, v1, v3);
+    Ac = compute_area(PP, v1, v2);
 
     A = Aa + Ab + Ac;
 
@@ -187,9 +187,9 @@ std::map<int,double> calc_barycentric_weights(const Point& v1, const Point& v2,
 
 double barycentric_weight(const Point& v1, const Point& v2, const Point& v3, const Point& vref, double va1, double va2, double va3) {
 
-    double Aa = computeArea(vref, v2,v3);
-    double Ab = computeArea(vref, v1,v3);
-    double Ac = computeArea(vref, v1,v2);
+    double Aa = compute_area(vref, v2, v3);
+    double Ab = compute_area(vref, v1, v3);
+    double Ac = compute_area(vref, v1, v2);
 
     double A = Aa + Ab + Ac;
     Aa = Aa / A;
@@ -197,42 +197,6 @@ double barycentric_weight(const Point& v1, const Point& v2, const Point& v3, con
     Ac =Ac / A;
 
     return  Aa * va1 + Ab * va2 + Ac * va3;
-}
-
-void computeNormal2EdgeOfTriangle(const Point& v0, const Point& v1, const Point& v2, Point& norm2edge) {
-
-    Point s1 = v2 - v0, s2 = v1 - v0;
-
-    if(s1.norm() > 1e-10)  s1.normalize(); else s1 = Point(0,0,0);
-    if(s2.norm() > 1e-10)  s2.normalize(); else s2 = Point(0,0,0);
-    // if these are very very small (rounding errors) all this goes horribly wrong
-
-    Point norm2triangle = s1 * s2;
-
-    if(norm2triangle.norm() > 1e-10)
-        norm2triangle.normalize();
-    else
-        norm2triangle = Point(0,0,0);
-
-    norm2edge = s2 * norm2triangle;
-    //Then take cross product of norm and the edge v1-v0 to get vector perpendicular to v1-v0
-
-    if ((s1 | norm2edge) < 0) /* first edge is in wrong direction, flip it. */
-        norm2edge = norm2edge * -1;
-}
-// Find the gradient of triangle area associated with edge v1v0 (end moving point v2) points away from v1v0 with magnitude equal to half the length of v1v0
-// used for unfolding
-Point computeGradientOfBarycentricTriangle(const Point& v0, const Point& v1, const Point& v2) {
-
-    Point v0v1, norm2edge;
-    double base;
-
-    computeNormal2EdgeOfTriangle(v0, v1, v2, norm2edge);
-
-    v0v1 = v1 - v0;
-    base = v0v1.norm();
-
-    return norm2edge * 0.5 * base;
 }
 
 } //namespace newresampler
