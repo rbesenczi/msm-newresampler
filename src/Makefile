@@ -2,7 +2,7 @@ include ${FSLCONFDIR}/default.mk
 
 PROJNAME = newresampler
 SOFILES  = libfsl-newresampler.so
-LIBS     = -lfsl-miscmaths -lfsl-giftiio -lfsl-newmeshclass
+LIBS     = -lfsl-newmeshclass
 OBJS     = meshException.o point.o mpoint.o triangle.o\
 		   mesh.o node.o octree.o resampler.o
 USRCXXFLAGS += -fopenmp
