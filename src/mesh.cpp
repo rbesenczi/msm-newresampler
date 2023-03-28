@@ -1328,11 +1328,18 @@ Mesh create_exclusion(const Mesh& data_mesh, float thrl, float thru) {
 
     #pragma omp parallel
     for (int i = 0; i < data_mesh.npvalues(); i++)
-        if (data_mesh.get_pvalue(i) >= (thrl - EPSILON) && data_mesh.get_pvalue(i) <= (thru + EPSILON))
-            EXCL.set_pvalue(i, 0);
-        else
-            EXCL.set_pvalue(i, 1);
-
+    {
+        bool flag = false;
+        for (int feat_dim = 0; feat_dim < data_mesh.get_dimension(); ++feat_dim)
+        {
+            if (data_mesh.get_pvalue(i, feat_dim) >= (thrl - EPSILON) &&
+                data_mesh.get_pvalue(i, feat_dim) <= (thru + EPSILON))
+                flag = true;
+            else
+                flag = false;
+        }
+        if(flag) EXCL.set_pvalue(i, 0);
+    }
     return EXCL;
 }
 

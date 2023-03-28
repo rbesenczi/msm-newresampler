@@ -34,27 +34,38 @@ Mesh Resampler::barycentric_data_interpolation(const Mesh& metric_in, const Mesh
         throw MeshException("Exclusion mask differs in nvertices from data");
 
     Mesh exclusion = sphLow, interpolated_mesh = sphLow;
+    interpolated_mesh.initialize_pvalues(metric_in.get_dimension());
     std::vector<std::map<int,double>> weights = get_adaptive_barycentric_weights(metric_in, sphLow, EXCL);
 
-    #pragma omp parallel for
-    for (int k = 0; k < interpolated_mesh.nvertices(); k++)
-    {
-        exclusion.set_pvalue(k, 0.0);
-        double val = 0.0, excl_val = 0.0;
-
-        for (const auto& it: weights[k])
+    for(int feat_dim = 0; feat_dim < metric_in.get_dimension(); ++feat_dim) {
+        #pragma omp parallel for
+        for (int k = 0; k < interpolated_mesh.nvertices(); k++)
         {
-            if(!EXCL || EXCL->get_pvalue(it.first) != 0)
-            {
-                val += metric_in.get_pvalue(it.first) * it.second;
-                if(EXCL) excl_val += EXCL->get_pvalue(it.first) * it.second;
-            }
+            double val = 0.0;
+
+            for (const auto &it: weights[k])
+                if (!EXCL || EXCL->get_pvalue(it.first) != 0)
+                    val += metric_in.get_pvalue(it.first, feat_dim) * it.second;
+
+            interpolated_mesh.set_pvalue(k, val, feat_dim);
         }
-        interpolated_mesh.set_pvalue(k, val);
-        if(EXCL) exclusion.set_pvalue(k, excl_val);
     }
 
-    if (EXCL) *EXCL = exclusion;
+    if (EXCL) {
+        #pragma omp parallel for
+        for (int k = 0; k < exclusion.nvertices(); k++)
+        {
+            double excl_val = 0.0;
+
+            for (const auto &it: weights[k])
+                if (EXCL->get_pvalue(it.first) != 0)
+                    excl_val += EXCL->get_pvalue(it.first) * it.second;
+
+            exclusion.set_pvalue(k, excl_val);
+        }
+        *EXCL = exclusion;
+    }
+
     return interpolated_mesh;
 }
 
@@ -159,7 +170,7 @@ Mesh smooth_data(Mesh& orig, const Mesh& sphLow, double sigma, std::shared_ptr<M
 //---SMOOTHING---//
     check_scale(orig, sphLow);
 
-    NEWMAT::Matrix newdata(1, sphLow.nvertices()); newdata = 0;
+    NEWMAT::Matrix newdata(orig.get_dimension(), sphLow.nvertices()); newdata = 0;
     Mesh exclusion = sphLow, smoothed = sphLow;
     const double RAD = 100.0;
     const double ang = 4 * asin(sigma / (2 * RAD));
@@ -199,12 +210,14 @@ Mesh smooth_data(Mesh& orig, const Mesh& sphLow, double sigma, std::shared_ptr<M
                 if(EXCL) weight = EXCL->get_pvalue(neighbour.first) * weight;
 
                 SUM += weight;
-                newdata(1, i + 1) += orig.get_pvalue(neighbour.first) * weight;
+                for(int feat_dim = 0; feat_dim < orig.get_dimension(); ++feat_dim)
+                    newdata(feat_dim + 1, i + 1) += orig.get_pvalue(neighbour.first, feat_dim) * weight;
             }
 
             if(excl_sum != 0.0 && EXCL) exclusion.set_pvalue(i, SUM / excl_sum);
 
-            if(SUM != 0.0) newdata(1, i + 1) /= SUM;
+            for(int feat_dim = 1; feat_dim <= orig.get_dimension(); ++feat_dim)
+                if(SUM != 0.0) newdata(feat_dim, i + 1) /= SUM;
         }
         else
             exclusion.set_pvalue(i, 0);
@@ -212,9 +225,7 @@ Mesh smooth_data(Mesh& orig, const Mesh& sphLow, double sigma, std::shared_ptr<M
 
     if(EXCL) *EXCL = exclusion;
 
-    #pragma omp parallel for
-    for (int i = 0; i < smoothed.nvertices(); i++)
-        smoothed.set_pvalue(i, newdata(1, i + 1));
+    smoothed.set_pvalues(newdata);
 
     return smoothed;
 }
@@ -224,6 +235,7 @@ Mesh nearest_neighbour_interpolation(Mesh& orig, const Mesh& sphLow, std::shared
     check_scale(orig, sphLow);
 
     Mesh exclusion = sphLow, interpolated = sphLow;
+    interpolated.initialize_pvalues(orig.get_dimension());
 
     Octree oct_search(orig);
 
@@ -236,7 +248,8 @@ Mesh nearest_neighbour_interpolation(Mesh& orig, const Mesh& sphLow, std::shared
         if(!EXCL || EXCL->get_pvalue(closest_vertex) != 0)
         {
             if(EXCL) exclusion.set_pvalue(i, EXCL->get_pvalue(closest_vertex));
-            interpolated.set_pvalue(i, orig.get_pvalue(closest_vertex));
+            for(int feat_dim = 0; feat_dim < orig.get_dimension(); ++feat_dim)
+                interpolated.set_pvalue(i, orig.get_pvalue(closest_vertex, feat_dim), feat_dim);
         }
     }
 

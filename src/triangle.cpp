@@ -194,9 +194,23 @@ double barycentric_weight(const Point& v1, const Point& v2, const Point& v3, con
     double A = Aa + Ab + Ac;
     Aa = Aa / A;
     Ab = Ab / A;
-    Ac =Ac / A;
+    Ac = Ac / A;
 
     return  Aa * va1 + Ab * va2 + Ac * va3;
+}
+
+Point barycentric(const Point& v1, const Point& v2, const Point& v3, const Point& vref, const Point& va1, const Point& va2, const Point& va3){
+
+    double Aa = compute_area(vref, v2, v3);
+    double Ab = compute_area(vref, v1, v3);
+    double Ac = compute_area(vref, v1, v2);
+
+    double A = Aa + Ab + Ac;
+    Aa = Aa / A;
+    Ab = Ab / A;
+    Ac = Ac / A;
+
+    return  va1 * Aa + va2 * Ab + va3 * Ac;
 }
 
 } //namespace newresampler

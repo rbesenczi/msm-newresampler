@@ -68,6 +68,7 @@ public:
 
 std::map<int,double> calc_barycentric_weights(const Point&, const Point&, const Point&, const Point&, int, int, int);
 double barycentric_weight(const Point& v1, const Point& v2, const Point& v3, const Point& vref, double va1, double va2, double va3);
+Point barycentric(const Point& v1, const Point& v2, const Point& v3, const Point& vref, const Point& va1, const Point& va2, const Point& va3);
 
 } //namespace newresampler
 
