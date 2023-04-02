@@ -1329,16 +1329,15 @@ Mesh create_exclusion(const Mesh& data_mesh, float thrl, float thru) {
     #pragma omp parallel
     for (int i = 0; i < data_mesh.npvalues(); i++)
     {
+        EXCL.set_pvalue(i, 0.0);
         bool flag = false;
         for (int feat_dim = 0; feat_dim < data_mesh.get_dimension(); ++feat_dim)
-        {
-            if (data_mesh.get_pvalue(i, feat_dim) >= (thrl - EPSILON) &&
-                data_mesh.get_pvalue(i, feat_dim) <= (thru + EPSILON))
-                flag = true;
-            else
-                flag = false;
-        }
-        if(flag) EXCL.set_pvalue(i, 0);
+            if (!(data_mesh.get_pvalue(i, feat_dim) >= (thrl - EPSILON) &&
+                  data_mesh.get_pvalue(i, feat_dim) <= (thru + EPSILON))) {
+                // "only exclude if cfweighting for all feat dimensions is zero"
+                EXCL.set_pvalue(i, 1.0);
+                break;
+            }
     }
     return EXCL;
 }
