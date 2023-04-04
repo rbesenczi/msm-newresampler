@@ -66,6 +66,17 @@ Point project_point(const Point &vb, const Point &v1, const Point &v2,
     return s3;
 }
 
+void project_point(const Point& v1, const Point& v2, const Point& v3, Point& PP)
+{
+    Point s1 = v3 - v1; s1.normalize();
+    Point s2 = v2 - v1; s2.normalize();
+    Point s3 = s1 * s2; s3.normalize();
+
+    double si = (s3|v1)/(s3|PP); // formula for line plane intersection s3.(v1-sivb)=0 i.e. (v1-sivb) should be perpendicular to plane normal s3
+
+    PP *= si;  // PP therefore where vb intersects plane
+}
+
 void project_point(const Point& vb, const Tangs& T, double& e1coord, double& e2coord) {
     e1coord = vb | T.e1;
     e2coord = vb | T.e2;
