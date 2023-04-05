@@ -38,7 +38,7 @@ Mesh Resampler::barycentric_data_interpolation(const Mesh& metric_in, const Mesh
     std::vector<std::map<int,double>> weights = get_adaptive_barycentric_weights(metric_in, sphLow, EXCL);
 
     for(int feat_dim = 0; feat_dim < metric_in.get_dimension(); ++feat_dim) {
-        #pragma omp parallel for
+#pragma omp parallel for
         for (int k = 0; k < interpolated_mesh.nvertices(); k++)
         {
             double val = 0.0;
@@ -52,7 +52,7 @@ Mesh Resampler::barycentric_data_interpolation(const Mesh& metric_in, const Mesh
     }
 
     if (EXCL) {
-        #pragma omp parallel for
+#pragma omp parallel for
         for (int k = 0; k < exclusion.nvertices(); k++)
         {
             double excl_val = 0.0;
@@ -96,7 +96,7 @@ std::vector<std::map<int,double>> Resampler::get_adaptive_barycentric_weights(co
             reverse_reorder[iter->first][oldNode] = iter->second; //this loop can't be parallelized
     }
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int newNode = 0; newNode < numNewNodes; ++newNode)
     {
         if(!EXCL || EXCL->get_pvalue(octreeSearch_in.get_closest_vertex_ID(sphLow.get_coord(newNode))) != 0)
@@ -117,7 +117,7 @@ std::vector<std::map<int,double>> Resampler::get_adaptive_barycentric_weights(co
         }
     }
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int newNode = 0; newNode < numNewNodes; ++newNode)
     {
         if(!EXCL || EXCL->get_pvalue(octreeSearch_in.get_closest_vertex_ID(sphLow.get_coord(newNode))) != 0)
@@ -144,7 +144,7 @@ std::vector<std::map<int,double>> Resampler::get_barycentric_weights(const Mesh&
     std::vector<std::map<int,double>> weights;
     weights.resize(low.nvertices());
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int k = 0; k < low.nvertices(); k++)
     {
         Point v0, v1, v2;
@@ -177,7 +177,7 @@ Mesh smooth_data(Mesh& orig, const Mesh& sphLow, double sigma, std::shared_ptr<M
 
     Octree oct_search(orig);
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int i = 0; i < sphLow.nvertices(); i++)
     {
         exclusion.set_pvalue(i,0);
@@ -239,7 +239,7 @@ Mesh nearest_neighbour_interpolation(Mesh& orig, const Mesh& sphLow, std::shared
 
     Octree oct_search(orig);
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int i = 0; i < sphLow.nvertices(); i++)
     {
         exclusion.set_pvalue(i, 0);
@@ -266,7 +266,7 @@ Mesh project_mesh(const Mesh& orig, const Mesh& target, const Mesh& anat) {
 
     std::vector<std::map<int,double>> weights = resampler.get_barycentric_weights(orig, target, octreeSearch);
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int i = 0; i < orig.nvertices(); i++)
     {
         Point new_coord;
@@ -290,7 +290,7 @@ Mesh surface_resample(const Mesh& anatOrig, const Mesh& sphOrig, const Mesh& sph
 
     std::vector<std::map<int,double>> weights = resampler.get_barycentric_weights(sphLow, sphOrig, octreeSearch);
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for(int i = 0; i < sphLow.nvertices(); i++)
     {
         Point newPt;
@@ -315,7 +315,7 @@ void barycentric_mesh_interpolation(Mesh& SPH_up, const Mesh& SPH_low_init, cons
     Octree octree_search(SPH_low_init);
     std::vector<std::map<int,double>> weights = R.get_barycentric_weights(SPH_up, SPH_low_init, octree_search);
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for(int i = 0; i < SPH_up.nvertices(); i++)
     {
         Point newPt;

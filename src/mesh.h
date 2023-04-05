@@ -24,6 +24,7 @@ SOFTWARE.
 
 #include <cstdio>
 #include <iomanip>
+#include <omp.h>
 
 #include "miscmaths/miscmaths.h"
 #include "miscmaths/bfmatrix.h"
