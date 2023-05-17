@@ -170,45 +170,47 @@ Triangle Octree::get_closest_triangle(const Point &pt) const {
                     if (k->contains_point(pt))
                         current_oct = k;
 
-    for (int i = 0; i < current_oct->triangles_size(); ++i)
-    {
+    for (int i = 0; i < current_oct->triangles_size(); ++i) {
         double temp_distance = distance_to_triangle(pt, current_oct->get_triangle(i));
-
-        if(temp_distance > -1.0 && temp_distance < best_distance)
-        {
+        if(temp_distance > -1.0 && temp_distance < best_distance) {
             closest_triangle = current_oct->get_triangle(i);
             best_distance = temp_distance;
         }
     }
 
-    if(closest_triangle.get_no() == -1)
-    {
-        const double RAD = 100.0;
-        if (current_oct->triangles_size() != 0)
-            for (int i = 0; i < current_oct->triangles_size(); ++i)
-                for (int j = 0; j < 3; ++j) {
-                    Point CP = current_oct->get_triangle(i).get_vertex_coord(j);
-                    double temp_distance = 2 * RAD * asin((CP - pt).norm() / (2 * RAD));
-                    if (temp_distance < best_distance) {
-                        closest_triangle = current_oct->get_triangle(i);
-                        best_distance = temp_distance;
+    if(closest_triangle.get_no() == -1) {
+        best_distance = std::numeric_limits<double>::max();
+        for (auto &i: current_oct->parent->children)
+            for (auto &j: i)
+                for (auto &close_oct: j)
+                    for (int tr = 0; tr < close_oct->triangles_size(); ++tr) {
+                        double temp_distance = distance_to_triangle(pt, close_oct->get_triangle(tr));
+                        if (temp_distance > -1.0 && temp_distance < best_distance) {
+                            closest_triangle = close_oct->get_triangle(tr);
+                            best_distance = temp_distance;
+                        }
                     }
-                }
-        else
-            for (auto &i: current_oct->parent->children)
-                for (auto &j: i)
-                    for (auto close_oct: j)
-                        for (int tr = 0; tr < close_oct->triangles_size(); ++tr)
-                            for (int v = 0; v < 3; ++v) {
-                                Point CP = close_oct->get_triangle(tr).get_vertex_coord(v);
-                                double temp_distance = 2 * RAD * asin((CP - pt).norm() / (2 * RAD));
-                                if (temp_distance < best_distance) {
-                                    closest_triangle = close_oct->get_triangle(tr);
-                                    best_distance = temp_distance;
-                                }
-                            }
-
     }
+
+    if(closest_triangle.get_no() == -1) {
+        //This is an unfortunate case... Probably needs some more refinement.
+        best_distance = std::numeric_limits<double>::max();
+        constexpr double RAD = 100.0;
+        for (auto &i: current_oct->parent->children)
+            for (auto &j: i)
+                for (auto close_oct: j)
+                    for (int tr = 0; tr < close_oct->triangles_size(); ++tr)
+                        for (int v = 0; v < 3; ++v) {
+                            Point CP = close_oct->get_triangle(tr).get_vertex_coord(v);
+                            double temp_distance = 2 * RAD * asin((CP - pt).norm() / (2 * RAD));
+                            if (temp_distance < best_distance) {
+                                closest_triangle = close_oct->get_triangle(tr);
+                                best_distance = temp_distance;
+                            }
+                        }
+    }
+
+    if(closest_triangle.get_no() == -1) throw MeshException("Error in octree...");
 
     return closest_triangle;
 }
