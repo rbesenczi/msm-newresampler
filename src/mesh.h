@@ -103,6 +103,9 @@ public:
         return triangles[n].normal();
     }
 
+    int get_triangle_vertexID(int n, int i) const { return triangles[n].get_vertex_no(i); }
+    std::vector<std::shared_ptr<Mpoint>> get_points() const { return points; }
+
     int get_total_neighbours(int i) const {
         return points.at(i)->nneighbours();
     }
